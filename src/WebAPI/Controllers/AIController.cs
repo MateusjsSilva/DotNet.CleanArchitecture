@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using CleanArchitecture.Modules.AI.Interfaces;
 using CleanArchitecture.WebAPI.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -6,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace CleanArchitecture.WebAPI.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion(1)]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Authorize]
 public sealed class AIController(IAIService aiService) : ControllerBase
 {

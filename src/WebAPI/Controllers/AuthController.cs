@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.Interfaces;
 using CleanArchitecture.WebAPI.Models;
@@ -6,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace CleanArchitecture.WebAPI.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion(1)]
+[Route("api/v{version:apiVersion}/[controller]")]
 public sealed class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("register")]

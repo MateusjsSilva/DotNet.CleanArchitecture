@@ -2,8 +2,11 @@ using CleanArchitecture.Application.Interfaces;
 using CleanArchitecture.Domain.Interfaces;
 using CleanArchitecture.Infrastructure.Identity;
 using CleanArchitecture.Infrastructure.Persistence;
+using CleanArchitecture.Infrastructure.Persistence.Outbox;
 using CleanArchitecture.Infrastructure.Persistence.Repositories;
+using CleanArchitecture.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -79,6 +82,11 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IAuthService, AuthService>();
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        services.AddHostedService<OutboxProcessorService>();
 
         return services;
     }

@@ -15,7 +15,7 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
     public async Task GetAll_ShouldReturn200WithPagedResult()
     {
         // Act
-        var response = await _client.GetAsync("/api/products");
+        var response = await _client.GetAsync("/api/v1/products");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -32,7 +32,7 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
         var command = new { Name = "Integration Test Product", Description = "Test", Price = 49.99m };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/products", command);
+        var response = await _client.PostAsJsonAsync("/api/v1/products", command);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -46,7 +46,7 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
     public async Task GetById_WithNonExistentId_ShouldReturn404NotFound()
     {
         // Act
-        var response = await _client.GetAsync($"/api/products/{Guid.NewGuid()}");
+        var response = await _client.GetAsync($"/api/v1/products/{Guid.NewGuid()}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -59,7 +59,7 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
         var command = new { Name = "", Price = -1m };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/products", command);
+        var response = await _client.PostAsJsonAsync("/api/v1/products", command);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);

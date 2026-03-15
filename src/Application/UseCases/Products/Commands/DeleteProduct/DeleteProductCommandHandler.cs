@@ -14,7 +14,8 @@ internal sealed class DeleteProductCommandHandler(
         var product = await productRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new NotFoundException("Product", request.Id);
 
-        productRepository.Remove(product);
+        product.SoftDelete();
+        productRepository.Update(product);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

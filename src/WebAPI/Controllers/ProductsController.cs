@@ -1,9 +1,12 @@
+using Asp.Versioning;
 using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.UseCases.Products.Commands.CreateProduct;
 using CleanArchitecture.Application.UseCases.Products.Commands.DeleteProduct;
+using CleanArchitecture.Application.UseCases.Products.Commands.UpdateProduct;
 using CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 using CleanArchitecture.Application.UseCases.Products.Queries.GetProductById;
+using CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;
 using CleanArchitecture.WebAPI.Models;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace CleanArchitecture.WebAPI.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion(1)]
+[Route("api/v{version:apiVersion}/[controller]")]
 public sealed class ProductsController(ISender sender) : ControllerBase
 {
     [HttpGet]
@@ -48,6 +52,19 @@ public sealed class ProductsController(ISender sender) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResponse<ProductDto>(result));
     }
 
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType<ApiResponse<ProductDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateProductCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await sender.Send(command with { Id = id }, cancellationToken);
+        return Ok(new ApiResponse<ProductDto>(result));
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -57,5 +74,13 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     {
         await sender.Send(new DeleteProductCommand(id), cancellationToken);
         return NoContent();
+    }
+
+    [HttpGet("summary")]
+    [ProducesResponseType<ApiResponse<ProductsSummaryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSummary(CancellationToken cancellationToken = default)
+    {
+        var result = await sender.Send(new GetProductsSummaryQuery(), cancellationToken);
+        return Ok(new ApiResponse<ProductsSummaryDto>(result));
     }
 }

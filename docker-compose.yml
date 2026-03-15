@@ -35,5 +35,30 @@ services:
       - "4317:4317"    # OTLP gRPC
       - "4318:4318"    # OTLP HTTP
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"    # Prometheus UI
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"    # Grafana UI (admin/admin)
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   sqlserver-data:
+  prometheus-data:
+  grafana-data:

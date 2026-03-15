@@ -40,8 +40,17 @@ internal static class ObservabilityExtensions
 
                 if (!string.IsNullOrWhiteSpace(otlpEndpoint))
                     metrics.AddOtlpExporter(opts => opts.Endpoint = new Uri(otlpEndpoint));
+
+                // Always expose /metrics for Prometheus scraping
+                metrics.AddPrometheusExporter();
             });
 
         return services;
+    }
+
+    internal static IApplicationBuilder UsePrometheusMetrics(this IApplicationBuilder app)
+    {
+        app.UseOpenTelemetryPrometheusScrapingEndpoint();
+        return app;
     }
 }

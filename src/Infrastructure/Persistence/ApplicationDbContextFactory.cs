@@ -1,4 +1,4 @@
-using MediatR;
+using CleanArchitecture.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -26,16 +26,13 @@ public sealed class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Ap
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
         optionsBuilder.UseSqlServer(connectionString);
 
-        return new ApplicationDbContext(optionsBuilder.Options, new NoOpPublisher());
+        return new ApplicationDbContext(optionsBuilder.Options, new NoOpCurrentUserService());
     }
 
-    private sealed class NoOpPublisher : IPublisher
+    private sealed class NoOpCurrentUserService : ICurrentUserService
     {
-        public Task Publish(object notification, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-
-        public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
-            where TNotification : INotification =>
-            Task.CompletedTask;
+        public string? UserId => null;
+        public string? UserName => null;
+        public bool IsAuthenticated => false;
     }
 }

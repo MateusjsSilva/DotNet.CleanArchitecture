@@ -41,6 +41,12 @@ try
         http.AddStandardResilienceHandler());
 
     builder.Services.AddControllers();
+    builder.Services.AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true;
+    });
     builder.Services.AddOpenApi();
     builder.Services.AddProblemDetails();
 
@@ -70,6 +76,7 @@ try
 
     app.MapControllers().RequireRateLimiting(RateLimitingExtensions.FixedPolicy);
     app.MapAppHealthChecks();
+    app.UsePrometheusMetrics();
 
     await app.RunAsync();
 }
