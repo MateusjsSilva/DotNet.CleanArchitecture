@@ -1,0 +1,64 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+.vs/
+*.DotSettings.user
+
+## Packages
+packages/
+*.nupkg
+*.snupkg
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+[Xx]64/
+[Xx]86/
+[Bb]uild/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+## Test results
+TestResults/
+[Cc]overage/
+*.trx
+*.coverage
+*.coveragexml
+
+## Migrations (uncomment if you want to exclude auto-generated migrations)
+# src/Infrastructure/Persistence/Migrations/
+
+## Claude Code
+.claude/
+
+## User secrets
+appsettings.*.json
+!appsettings.Development.json
+!appsettings.Test.json
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+## Logs
+logs/
+*.log
