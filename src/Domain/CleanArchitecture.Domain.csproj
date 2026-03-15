@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>CleanArchitecture.Domain</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MediatR is used only for INotification on IDomainEvent.
+         All domain logic remains framework-agnostic. -->
+    <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+  </ItemGroup>
+
+</Project>
