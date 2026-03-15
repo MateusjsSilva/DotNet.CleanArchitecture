@@ -1,5 +1,6 @@
+using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.DTOs;
-using FluentAssertions;
+using CleanArchitecture.WebAPI.Models;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -11,13 +12,17 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
-    public async Task GetAll_ShouldReturn200OK()
+    public async Task GetAll_ShouldReturn200WithPagedResult()
     {
         // Act
         var response = await _client.GetAsync("/api/products");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ProductDto>>>();
+        body.Should().NotBeNull();
+        body!.Data.Items.Should().NotBeNull();
     }
 
     [Fact]
@@ -32,9 +37,9 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var product = await response.Content.ReadFromJsonAsync<ProductDto>();
-        product.Should().NotBeNull();
-        product!.Name.Should().Be("Integration Test Product");
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
+        body.Should().NotBeNull();
+        body!.Data.Name.Should().Be("Integration Test Product");
     }
 
     [Fact]

@@ -1,0 +1,6 @@
+services:
+  cleanarchitecture.webapi:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - ./logs:/app/logs

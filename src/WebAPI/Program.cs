@@ -33,9 +33,16 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddAIModule(builder.Configuration);
     builder.Services.AddObservability(builder.Configuration);
+    builder.Services.AddAppHealthChecks(builder.Configuration);
+    builder.Services.AddCorsPolicy(builder.Configuration);
+    builder.Services.AddApiRateLimiting();
+
+    builder.Services.ConfigureHttpClientDefaults(http =>
+        http.AddStandardResilienceHandler());
 
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
+    builder.Services.AddProblemDetails();
 
     // Authentication is configured inside AddInfrastructure (JWT Bearer + Identity)
     builder.Services.AddAuthorization();
@@ -52,10 +59,17 @@ try
 
     app.UseHttpsRedirection();
 
+    app.UseCors(app.Environment.IsDevelopment()
+        ? CorsExtensions.AllowAllPolicy
+        : CorsExtensions.AllowSpecificPolicy);
+
+    app.UseRateLimiter();
+
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapControllers();
+    app.MapControllers().RequireRateLimiting(RateLimitingExtensions.FixedPolicy);
+    app.MapAppHealthChecks();
 
     await app.RunAsync();
 }

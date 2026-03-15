@@ -1,6 +1,7 @@
 using CleanArchitecture.Domain.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace CleanArchitecture.WebAPI.Middlewares;
@@ -43,14 +44,17 @@ public sealed class ExceptionHandlingMiddleware(
                 CreateProblemDetails(StatusCodes.Status500InternalServerError, "Server Error", "An unexpected error occurred."))
         };
 
+        problemDetails.Instance = context.Request.Path;
+        problemDetails.Extensions["traceId"] = Activity.Current?.TraceId.ToString()
+            ?? context.TraceIdentifier;
+
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
 
-        await context.Response.WriteAsync(
-            JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            }));
+        await context.Response.WriteAsJsonAsync(problemDetails, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
     }
 
     private static ProblemDetails CreateProblemDetails(int status, string title, string detail) =>

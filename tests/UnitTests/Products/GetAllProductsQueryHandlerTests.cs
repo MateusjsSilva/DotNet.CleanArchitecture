@@ -1,8 +1,6 @@
-using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 using CleanArchitecture.Domain.Entities;
 using CleanArchitecture.Domain.Interfaces;
-using FluentAssertions;
 using NSubstitute;
 
 namespace CleanArchitecture.UnitTests.Products;
@@ -37,9 +35,8 @@ public sealed class GetAllProductsQueryHandlerTests
         var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().HaveCount(1);
-        result[0].Name.Should().Be("Active Product");
+        result.TotalCount.Should().Be(1);
+        result.Items[0].Name.Should().Be("Active Product");
 
         await _productRepository.Received(1)
             .GetActiveProductsAsync(Arg.Any<CancellationToken>());
@@ -68,14 +65,14 @@ public sealed class GetAllProductsQueryHandlerTests
         var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
-        result.Should().HaveCount(2);
+        result.TotalCount.Should().Be(2);
 
         await _productRepository.Received(1)
             .GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WhenNoProductsExist_ShouldReturnEmptyList()
+    public async Task Handle_WhenNoProductsExist_ShouldReturnEmptyPagedResult()
     {
         // Arrange
         _productRepository
@@ -88,6 +85,7 @@ public sealed class GetAllProductsQueryHandlerTests
         var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
-        result.Should().BeEmpty();
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
     }
 }
