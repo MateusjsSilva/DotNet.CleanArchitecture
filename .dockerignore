@@ -1,0 +1,9 @@
+**/.vs
+**/.vscode
+**/.git
+**/bin
+**/obj
+**/TestResults
+**/logs
+**/*.user
+**/.DS_Store

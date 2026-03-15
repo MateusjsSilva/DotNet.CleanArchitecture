@@ -1,19 +1,19 @@
-version: '3.9'
-
 services:
   cleanarchitecture.webapi:
     image: cleanarchitecture-api
     build:
       context: .
-      dockerfile: src/04-Presentation/CleanArchitecture.WebAPI/Dockerfile
+      dockerfile: src/WebAPI/Dockerfile
     ports:
       - "5000:8080"
       - "5001:8081"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=CleanArchitectureDb;User=sa;Password=Your_Strong_Password!;TrustServerCertificate=True
+      - Observability__Otlp__Endpoint=http://jaeger:4317
     depends_on:
       - sqlserver
+      - jaeger
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -25,6 +25,15 @@ services:
       - "1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
 
 volumes:
   sqlserver-data:

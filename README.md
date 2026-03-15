@@ -1,13 +1,13 @@
 # CleanArchitecture
 
-A .NET 9 Clean Architecture solution template with CQRS, Domain Events, JWT + Refresh Tokens, Dapper, GUID v7, Semantic Kernel AI, and automated Architecture Tests.
+A .NET 10 Clean Architecture solution template with CQRS, Domain Events, JWT + Refresh Tokens, Dapper, GUID v7, OpenTelemetry, Semantic Kernel AI, and automated Architecture Tests.
 
 ## Structure
 
 ```
 src/
 ├── Domain/          # Entities, Value Objects, Domain Events, Interfaces
-├── Application/     # Use Cases (CQRS/MediatR), DTOs, Validators, Mappings
+├── Application/     # Use Cases (CQRS/MediatR), DTOs, Validators, Manual Mappings
 ├── Infrastructure/  # EF Core, Identity, Repositories, Dapper, JWT, External Services
 ├── WebAPI/          # Controllers, Middleware, Program.cs
 └── Modules/
@@ -25,12 +25,13 @@ tests/
 |---|---|
 | CQRS / Mediator | MediatR 12 |
 | Validation | FluentValidation 11 |
-| Object Mapping | Mapster 7 |
-| ORM (write side) | Entity Framework Core 9 |
+| Object Mapping | Manual extension methods |
+| ORM (write side) | Entity Framework Core 10 |
 | Read-side queries | Dapper 2 |
 | Authentication | ASP.NET Core Identity + JWT Bearer |
-| AI Integration | Microsoft Semantic Kernel 1.30 |
+| AI Integration | Microsoft Semantic Kernel 1.73 |
 | Logging | Serilog |
+| Observability | OpenTelemetry (traces + metrics) → Jaeger / OTLP |
 | API Docs | Scalar + OpenAPI |
 | Unit Tests | xUnit + NSubstitute + FluentAssertions |
 | Architecture Tests | NetArchTest |
@@ -38,7 +39,7 @@ tests/
 ## Getting Started
 
 ### Prerequisites
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - SQL Server (or LocalDB for development)
 
 ### Using as a `dotnet new` template
@@ -50,11 +51,8 @@ dotnet new install .
 # Create a new project (renames all namespaces, assemblies, and files)
 dotnet new cleanarch -n MyCompany.MyApp
 
-# Or targeting .NET 8
-dotnet new cleanarch -n MyCompany.MyApp --Framework net8.0
-
-# Without Docker files
-dotnet new cleanarch -n MyCompany.MyApp --UseDocker false
+# Or targeting .NET 9
+dotnet new cleanarch -n MyCompany.MyApp --Framework net9.0
 ```
 
 > `sourceName: "CleanArchitecture"` in `template.json` replaces every occurrence of
@@ -90,6 +88,11 @@ dotnet run --project src/WebAPI
 docker compose up --build
 ```
 
+Services started:
+- **API** → http://localhost:5000
+- **Jaeger UI** → http://localhost:16686
+- **SQL Server** → localhost:1433
+
 ### Running tests
 
 ```bash
@@ -102,6 +105,23 @@ dotnet test tests/ArchitectureTests
 # With coverage
 dotnet test --collect:"XPlat Code Coverage"
 ```
+
+### Configuring Observability
+
+By default (no Docker), traces are exported to the **console**. To use Jaeger or any OTLP-compatible backend, set:
+
+```json
+{
+  "Observability": {
+    "ServiceName": "CleanArchitecture.API",
+    "Otlp": {
+      "Endpoint": "http://localhost:4317"
+    }
+  }
+}
+```
+
+When running via `docker compose`, this is set automatically via environment variable.
 
 ### Configuring AI (optional)
 
@@ -139,9 +159,10 @@ For Azure OpenAI:
 3. Create command/query + handler in `src/Application/UseCases/{Feature}/`
 4. Add validator in `src/Application/Validators/`
 5. Add DTO in `src/Application/DTOs/`
-6. Register repository in `src/Infrastructure/DependencyInjection.cs`
-7. Implement repository in `src/Infrastructure/Persistence/Repositories/`
-8. Add controller action in `src/WebAPI/Controllers/`
+6. Add mapping in `src/Application/UseCases/{Feature}/{Feature}Mappings.cs`
+7. Register repository in `src/Infrastructure/DependencyInjection.cs`
+8. Implement repository in `src/Infrastructure/Persistence/Repositories/`
+9. Add controller action in `src/WebAPI/Controllers/`
 
 ## Architecture Rules
 
@@ -159,3 +180,5 @@ Enforced by `ArchitectureTests` at every build:
 - **Dapper on the read side** — queries use `IProductQueries` (Application interface) backed by raw SQL in Infrastructure
 - **`IDesignTimeDbContextFactory`** — no startup project needed for `dotnet ef` CLI commands
 - **Domain Events** dispatched inside `SaveChangesAsync` via `IPublisher` (MediatR), keeping Domain free of infrastructure concerns
+- **Manual mapping** — no AutoMapper/Mapster; explicit `ToDto()` extension methods per feature keep mapping visible and type-safe
+- **OpenTelemetry** — traces and metrics via OTLP; `ActivitySource` in Application layer uses only BCL (`System.Diagnostics`), no OTel package dependency on Application

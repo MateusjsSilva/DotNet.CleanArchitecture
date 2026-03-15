@@ -1,5 +1,7 @@
+using CleanArchitecture.Application.Telemetry;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace CleanArchitecture.Application.Behaviors;
 
@@ -15,12 +17,25 @@ internal sealed class LoggingBehavior<TRequest, TResponse>(
     {
         var requestName = typeof(TRequest).Name;
 
+        using var activity = ApplicationActivitySource.Instance.StartActivity(requestName);
+        activity?.SetTag("mediator.request", requestName);
+
         logger.LogInformation("Handling {RequestName}: {@Request}", requestName, request);
 
-        var response = await next();
+        try
+        {
+            var response = await next();
 
-        logger.LogInformation("Handled {RequestName}", requestName);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            logger.LogInformation("Handled {RequestName}", requestName);
 
-        return response;
+            return response;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("error.type", ex.GetType().Name);
+            throw;
+        }
     }
 }

@@ -1,6 +1,7 @@
 using CleanArchitecture.Application;
 using CleanArchitecture.Infrastructure;
 using CleanArchitecture.Modules.AI;
+using CleanArchitecture.WebAPI.Extensions;
 using CleanArchitecture.WebAPI.Middlewares;
 using Scalar.AspNetCore;
 using Serilog;
@@ -31,6 +32,7 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddAIModule(builder.Configuration);
+    builder.Services.AddObservability(builder.Configuration);
 
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();

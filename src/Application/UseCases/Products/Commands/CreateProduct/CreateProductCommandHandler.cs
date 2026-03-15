@@ -1,7 +1,6 @@
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Entities;
 using CleanArchitecture.Domain.Interfaces;
-using Mapster;
 using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.CreateProduct;
@@ -20,6 +19,6 @@ internal sealed class CreateProductCommandHandler(
         await productRepository.AddAsync(product, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return product.Adapt<ProductDto>();
+        return product.ToDto();
     }
 }
