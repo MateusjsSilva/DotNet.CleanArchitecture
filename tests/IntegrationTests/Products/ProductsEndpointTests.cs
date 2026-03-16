@@ -7,9 +7,12 @@ using System.Net.Http.Json;
 namespace CleanArchitecture.IntegrationTests.Products;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
+public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory) : IAsyncLifetime
 {
     private readonly HttpClient _client = factory.CreateClient();
+
+    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task GetAll_ShouldReturn200WithPagedResult()

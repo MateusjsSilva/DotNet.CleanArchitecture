@@ -24,9 +24,13 @@ public sealed class ProductsController(ISender sender) : ControllerBase
         [FromQuery] bool onlyActive = true,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string orderBy = "createdAt",
+        [FromQuery] bool ascending = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(new GetAllProductsQuery(onlyActive, page, pageSize), cancellationToken);
+        var result = await sender.Send(
+            new GetAllProductsQuery(onlyActive, page, pageSize, orderBy, ascending),
+            cancellationToken);
         return Ok(new ApiResponse<PagedResult<ProductDto>>(result));
     }
 

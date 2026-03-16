@@ -1,8 +1,10 @@
 using CleanArchitecture.Application;
 using CleanArchitecture.Infrastructure;
+using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Modules.AI;
 using CleanArchitecture.WebAPI.Extensions;
 using CleanArchitecture.WebAPI.Middlewares;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -47,7 +49,7 @@ try
         options.AssumeDefaultVersionWhenUnspecified = true;
         options.ReportApiVersions = true;
     });
-    builder.Services.AddOpenApi();
+    builder.Services.AddOpenApiWithJwtSecurity();
     builder.Services.AddProblemDetails();
 
     // Authentication is configured inside AddInfrastructure (JWT Bearer + Identity)
@@ -77,6 +79,18 @@ try
     app.MapControllers().RequireRateLimiting(RateLimitingExtensions.FixedPolicy);
     app.MapAppHealthChecks();
     app.UsePrometheusMetrics();
+
+    // Apply pending EF Core migrations on startup (development/staging).
+    // For production, prefer running migrations as a separate deployment step.
+    if (app.Environment.IsDevelopment())
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Database.MigrateAsync();
+
+        // Uncomment to seed sample data on first run:
+        // await ApplicationDbContextSeeder.SeedAsync(db);
+    }
 
     await app.RunAsync();
 }

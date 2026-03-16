@@ -6,8 +6,11 @@ using System.Net.Http.Json;
 namespace CleanArchitecture.IntegrationTests.Products;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory)
+public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) : IAsyncLifetime
 {
+    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
+
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
