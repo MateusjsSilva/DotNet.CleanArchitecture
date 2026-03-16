@@ -1,3 +1,4 @@
+using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.DTOs;
 using MediatR;
 
@@ -8,4 +9,10 @@ public sealed record UpdateProductCommand(
     string Name,
     string? Description,
     decimal Price
-) : IRequest<ProductDto>;
+) : IRequest<ProductDto>, ICacheInvalidator
+{
+    public IEnumerable<string> CacheKeysToInvalidate =>
+    [
+        $"product:{Id}"
+    ];
+}

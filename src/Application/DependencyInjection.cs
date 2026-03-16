@@ -21,7 +21,7 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly);
-        services.AddMemoryCache();
+        services.AddDistributedMemoryCache(); // swap to AddStackExchangeRedisCache() for multi-instance
 
         return services;
     }
