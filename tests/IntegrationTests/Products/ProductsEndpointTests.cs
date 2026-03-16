@@ -6,8 +6,8 @@ using System.Net.Http.Json;
 
 namespace CleanArchitecture.IntegrationTests.Products;
 
+[Collection(IntegrationTestCollection.Name)]
 public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory)
-    : IClassFixture<WebApplicationFactoryFixture>
 {
     private readonly HttpClient _client = factory.CreateClient();
 
