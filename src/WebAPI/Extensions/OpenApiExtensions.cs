@@ -19,7 +19,8 @@ public static class OpenApiExtensions
             {
                 // 1. Register the Bearer scheme in document components
                 document.Components ??= new OpenApiComponents();
-                document.Components.SecuritySchemes!["Bearer"] = new OpenApiSecurityScheme
+                document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+                document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
                 {
                     Type = SecuritySchemeType.Http,
                     Scheme = "bearer",
@@ -29,7 +30,8 @@ public static class OpenApiExtensions
 
                 // 2. Add a global security requirement — Scalar sends the token on every request.
                 //    Anonymous endpoints are cleared of this requirement in the operation transformer.
-                document.Security!.Add(new OpenApiSecurityRequirement
+                document.Security ??= [];
+                document.Security.Add(new OpenApiSecurityRequirement
                 {
                     [new OpenApiSecuritySchemeReference("Bearer", document)] = []
                 });

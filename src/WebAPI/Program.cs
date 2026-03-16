@@ -48,6 +48,12 @@ try
         options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1);
         options.AssumeDefaultVersionWhenUnspecified = true;
         options.ReportApiVersions = true;
+    })
+    .AddMvc()
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
     });
     builder.Services.AddOpenApiWithJwtSecurity();
     builder.Services.AddProblemDetails();
@@ -65,7 +71,8 @@ try
         app.MapScalarApiReference();
     }
 
-    app.UseHttpsRedirection();
+    if (!app.Environment.IsDevelopment())
+        app.UseHttpsRedirection();
 
     app.UseCors(app.Environment.IsDevelopment()
         ? CorsExtensions.AllowAllPolicy

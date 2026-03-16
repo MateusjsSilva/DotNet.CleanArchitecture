@@ -15,7 +15,7 @@ namespace CleanArchitecture.WebAPI.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
-[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/products")]
 public sealed class ProductsController(ISender sender) : ControllerBase
 {
     [HttpGet]
