@@ -39,6 +39,10 @@ public sealed class ExceptionHandlingMiddleware(
                 StatusCodes.Status422UnprocessableEntity,
                 CreateValidationProblemDetails(validation)),
 
+            UnauthorizedAccessException unauthorized => (
+                StatusCodes.Status401Unauthorized,
+                CreateProblemDetails(StatusCodes.Status401Unauthorized, "Unauthorized", unauthorized.Message)),
+
             _ => (
                 StatusCodes.Status500InternalServerError,
                 CreateProblemDetails(StatusCodes.Status500InternalServerError, "Server Error", "An unexpected error occurred."))
