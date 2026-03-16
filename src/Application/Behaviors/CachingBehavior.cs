@@ -1,12 +1,13 @@
 using CleanArchitecture.Application.Common;
 using MediatR;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace CleanArchitecture.Application.Behaviors;
 
 internal sealed class CachingBehavior<TRequest, TResponse>(
-    IMemoryCache cache,
+    IDistributedCache cache,
     ILogger<CachingBehavior<TRequest, TResponse>> logger)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
@@ -18,22 +19,44 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        if (request is not ICacheableQuery cacheableRequest)
-            return await next();
-
-        if (cache.TryGetValue(cacheableRequest.CacheKey, out TResponse? cached))
+        // --- Read from cache (queries only) ---
+        if (request is ICacheableQuery cacheableRequest)
         {
-            logger.LogDebug("Cache hit for {CacheKey}", cacheableRequest.CacheKey);
-            return cached!;
+            var cached = await cache.GetStringAsync(cacheableRequest.CacheKey, cancellationToken);
+
+            if (cached is not null)
+            {
+                logger.LogDebug("Cache hit for {CacheKey}", cacheableRequest.CacheKey);
+                return JsonSerializer.Deserialize<TResponse>(cached)!;
+            }
+
+            logger.LogDebug("Cache miss for {CacheKey}", cacheableRequest.CacheKey);
+
+            var response = await next();
+
+            var expiration = cacheableRequest.AbsoluteExpiration ?? DefaultExpiration;
+            await cache.SetStringAsync(
+                cacheableRequest.CacheKey,
+                JsonSerializer.Serialize(response),
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expiration },
+                cancellationToken);
+
+            return response;
         }
 
-        logger.LogDebug("Cache miss for {CacheKey}", cacheableRequest.CacheKey);
+        // --- Execute handler ---
+        var result = await next();
 
-        var response = await next();
+        // --- Invalidate cache (commands that mutate data) ---
+        if (request is ICacheInvalidator invalidator)
+        {
+            foreach (var key in invalidator.CacheKeysToInvalidate)
+            {
+                await cache.RemoveAsync(key, cancellationToken);
+                logger.LogDebug("Cache evicted for {CacheKey}", key);
+            }
+        }
 
-        var expiration = cacheableRequest.AbsoluteExpiration ?? DefaultExpiration;
-        cache.Set(cacheableRequest.CacheKey, response, expiration);
-
-        return response;
+        return result;
     }
 }

@@ -1,11 +1,11 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "Your Name",
-  "classifications": ["Clean Architecture", "WebAPI", "DDD"],
+  "author": "Mateus Silva",
+  "classifications": ["Clean Architecture", "WebAPI", "DDD", "CQRS", "MediatR"],
   "identity": "CleanArchitecture.Template",
   "name": ".NET Clean Architecture Template",
   "shortName": "cleanarch",
-  "description": "A Clean Architecture solution template with Domain, Application, Infrastructure, and Presentation layers.",
+  "description": "Production-ready Clean Architecture solution with Domain, Application, Infrastructure, and WebAPI layers. Includes CQRS/MediatR, EF Core, JWT auth, Outbox pattern, Soft Delete, Caching, OpenTelemetry, Prometheus/Grafana, and more.",
   "tags": {
     "language": "C#",
     "type": "solution"
@@ -34,7 +34,19 @@
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include Dockerfile and docker-compose files."
+      "description": "Include Dockerfile, docker-compose (SQL Server, Redis, Jaeger, Prometheus, Grafana)."
+    },
+    "UseRedis": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Configure distributed cache to use Redis instead of in-memory. Requires Redis connection string."
+    },
+    "IncludeAIModule": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the Modules.AI example project (Claude API integration)."
     }
   },
   "sources": [
@@ -42,7 +54,18 @@
       "modifiers": [
         {
           "condition": "(!UseDocker)",
-          "exclude": ["Dockerfile", "docker-compose.yml", "docker-compose.override.yml"]
+          "exclude": [
+            "docker-compose.yml",
+            "docker-compose.override.yml",
+            "docker/**",
+            "src/WebAPI/Dockerfile"
+          ]
+        },
+        {
+          "condition": "(!IncludeAIModule)",
+          "exclude": [
+            "src/Modules/AI/**"
+          ]
         }
       ]
     }

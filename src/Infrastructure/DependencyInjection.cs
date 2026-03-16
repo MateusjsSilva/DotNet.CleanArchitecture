@@ -88,6 +88,19 @@ public static class DependencyInjection
 
         services.AddHostedService<OutboxProcessorService>();
 
+        // Distributed cache: Redis when configured, in-memory otherwise.
+        // To use Redis: set ConnectionStrings__Redis in appsettings / environment variables.
+        var redisConnectionString = configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
+                options.Configuration = redisConnectionString);
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+
         return services;
     }
 }

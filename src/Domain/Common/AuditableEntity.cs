@@ -13,6 +13,7 @@ public abstract class AuditableEntity : BaseEntity, ISoftDeletable
 
     public void SoftDelete()
     {
+        if (IsDeleted) return;
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
     }

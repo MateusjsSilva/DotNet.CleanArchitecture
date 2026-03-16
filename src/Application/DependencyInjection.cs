@@ -21,7 +21,6 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly);
-        services.AddMemoryCache();
 
         return services;
     }

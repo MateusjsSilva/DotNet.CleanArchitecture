@@ -8,7 +8,7 @@ namespace CleanArchitecture.WebAPI.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
-[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/ai")]
 [Authorize]
 public sealed class AIController(IAIService aiService) : ControllerBase
 {

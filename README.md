@@ -22,56 +22,55 @@ A production-ready .NET 10 Clean Architecture solution template with CQRS, Domai
 
 ## Architecture Overview
 
-The solution follows Clean Architecture principles: each layer depends only on layers inward, never outward. The Domain has zero external dependencies.
+The solution follows Clean Architecture: **dependency arrows always point inward**. The Domain has zero external dependencies; outer layers depend on inner layers, never the reverse.
 
 ```mermaid
-graph TD
-    subgraph Presentation["WebAPI (Presentation)"]
-        Controllers
-        Middlewares
-        Extensions
-    end
+graph LR
+    WA["<b>WebAPI</b><br/>─────────────────<br/>Controllers<br/>Middlewares<br/>Extensions<br/>Dockerfile"]
 
-    subgraph Application
-        UseCases["Use Cases (CQRS)"]
-        Behaviors["Pipeline Behaviors"]
-        Interfaces["Abstractions / Interfaces"]
-    end
+    IF["<b>Infrastructure</b><br/>─────────────────<br/>EF Core · Repositories<br/>Identity · JWT<br/>Outbox Processor<br/>CurrentUserService"]
 
-    subgraph Domain
-        Entities
-        Events["Domain Events"]
-        DomainInterfaces["Repository Interfaces"]
-        Exceptions
-        ValueObjects["Value Objects"]
-    end
+    AP["<b>Application</b><br/>─────────────────<br/>Use Cases (CQRS)<br/>Pipeline Behaviors<br/>Interfaces / DTOs<br/>Validators"]
 
-    subgraph Infrastructure
-        Persistence["EF Core / Repositories"]
-        Identity["JWT + ASP.NET Identity"]
-        Outbox["Outbox Processor"]
-        Services["CurrentUserService"]
-    end
+    DM["<b>Domain</b><br/>─────────────────<br/>Entities<br/>Domain Events<br/>Repository Interfaces<br/>Value Objects · Exceptions"]
 
-    subgraph Modules
-        AI["AI Module (Semantic Kernel)"]
-    end
+    MD["<b>Modules / AI</b><br/>─────────────────<br/>IAIService<br/>Semantic Kernel"]
 
-    Presentation --> Application
-    Presentation --> Infrastructure
-    Presentation --> Modules
-    Application --> Domain
-    Infrastructure --> Application
-    Infrastructure --> Domain
+    WA -- depends on --> AP
+    WA -- depends on --> IF
+    WA -- depends on --> MD
+    IF -- depends on --> AP
+    IF -- depends on --> DM
+    AP -- depends on --> DM
 
-    style Domain fill:#f9f,stroke:#333
-    style Application fill:#bbf,stroke:#333
-    style Infrastructure fill:#bfb,stroke:#333
-    style Presentation fill:#fbb,stroke:#333
-    style Modules fill:#ffb,stroke:#333
+    style DM fill:#f9f0ff,stroke:#9b59b6,color:#000
+    style AP fill:#ebf5fb,stroke:#2980b9,color:#000
+    style IF fill:#eafaf1,stroke:#27ae60,color:#000
+    style WA fill:#fdedec,stroke:#e74c3c,color:#000
+    style MD fill:#fef9e7,stroke:#f39c12,color:#000
 ```
 
-**Dependency rule:** arrows point inward. Domain knows nothing about Application or Infrastructure.
+**What is forbidden** (enforced by ArchitectureTests):
+
+```mermaid
+graph LR
+    DM["Domain"]
+    AP["Application"]
+    IF["Infrastructure"]
+    WA["WebAPI"]
+
+    AP -. ❌ .-> IF
+    AP -. ❌ .-> WA
+    DM -. ❌ .-> AP
+    DM -. ❌ .-> IF
+    DM -. ❌ .-> WA
+    IF -. ❌ .-> WA
+
+    style DM fill:#f9f0ff,stroke:#9b59b6,color:#000
+    style AP fill:#ebf5fb,stroke:#2980b9,color:#000
+    style IF fill:#eafaf1,stroke:#27ae60,color:#000
+    style WA fill:#fdedec,stroke:#e74c3c,color:#000
+```
 
 ---
 

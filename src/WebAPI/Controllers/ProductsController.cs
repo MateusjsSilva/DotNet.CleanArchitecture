@@ -15,7 +15,7 @@ namespace CleanArchitecture.WebAPI.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
-[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/products")]
 public sealed class ProductsController(ISender sender) : ControllerBase
 {
     [HttpGet]
@@ -24,9 +24,16 @@ public sealed class ProductsController(ISender sender) : ControllerBase
         [FromQuery] bool onlyActive = true,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string orderBy = "createdAt",
+        [FromQuery] bool ascending = false,
+        [FromQuery] string? nameContains = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(new GetAllProductsQuery(onlyActive, page, pageSize), cancellationToken);
+        var result = await sender.Send(
+            new GetAllProductsQuery(onlyActive, page, pageSize, orderBy, ascending, nameContains, minPrice, maxPrice),
+            cancellationToken);
         return Ok(new ApiResponse<PagedResult<ProductDto>>(result));
     }
 
