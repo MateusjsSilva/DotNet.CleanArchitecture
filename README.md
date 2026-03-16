@@ -410,6 +410,18 @@ graph TB
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 
+### Scalar — Interactive API Docs
+
+![Scalar](docs/images/scalar.png)
+
+### Prometheus — Target Health
+
+![Prometheus](docs/images/prometheus.png)
+
+### Grafana — Metrics Dashboard
+
+![Grafana](docs/images/grafana.png)
+
 ---
 
 ## Getting Started
