@@ -17,9 +17,21 @@ internal sealed class GetAllProductsQueryHandler(IProductRepository productRepos
             ? await productRepository.GetActiveProductsAsync(cancellationToken)
             : await productRepository.GetAllAsync(cancellationToken);
 
-        var totalCount = all.Count;
+        IEnumerable<Product> filtered = all;
 
-        var sorted = Sort(all, request.OrderBy, request.Ascending);
+        if (!string.IsNullOrWhiteSpace(request.NameContains))
+            filtered = filtered.Where(p => p.Name.Contains(request.NameContains, StringComparison.OrdinalIgnoreCase));
+
+        if (request.MinPrice.HasValue)
+            filtered = filtered.Where(p => p.Price >= request.MinPrice.Value);
+
+        if (request.MaxPrice.HasValue)
+            filtered = filtered.Where(p => p.Price <= request.MaxPrice.Value);
+
+        var filteredList = filtered.ToList();
+        var totalCount = filteredList.Count;
+
+        var sorted = Sort(filteredList, request.OrderBy, request.Ascending);
 
         var items = sorted
             .Skip((request.Page - 1) * request.PageSize)
@@ -30,7 +42,7 @@ internal sealed class GetAllProductsQueryHandler(IProductRepository productRepos
     }
 
     private static IEnumerable<Product> Sort(
-        IReadOnlyList<Product> products,
+        IEnumerable<Product> products,
         string orderBy,
         bool ascending) =>
         orderBy.ToLowerInvariant() switch
