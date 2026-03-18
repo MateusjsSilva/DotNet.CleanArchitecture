@@ -673,3 +673,36 @@ Additional rules:
 | **`IDesignTimeDbContextFactory`** | No startup project needed for `dotnet ef` CLI commands |
 | **Problem Details (RFC 9457)** | All error responses include `traceId` and `instance` for distributed tracing correlation |
 | **API Versioning** | All routes versioned via URL segment (`/api/v1/...`); adding `[ApiVersion(2)]` to a controller is all that's needed to introduce v2 |
+| **Rate Limiting (Granular)** | ASP.NET Core built-in `RateLimiter` with 4 policies (auth: 5/min, products: 100/min, ai: 30/min, default: 50/min); fixed window + queue for fairness; Problem Details for 429 |
+| **Polly Resilience** | Exponential backoff retry (2s, 4s, 8s) for OutboxProcessor; handles transient failures gracefully |
+| **Dead Letter Queue** | Failed events moved to `DeadLetterMessages` after 3 retries; enables investigation and manual reprocessing |
+| **Event Versioning** | Schema evolution via `EventVersion` field + `EventMigrationHandler`; backward-compatible event processing |
+| **Idempotency Keys** | `OutboxMessage.IdempotencyKey` prevents duplicate processing; essential for message retries |
+| **Cache with Sliding Expiration** | `ICacheableQuery` supports both absolute and sliding expiration; `CachingBehavior` applies intelligently per-query |
+| **Development Seeding** | `ApplicationDbContextSeeder` auto-populates realistic data in Development environment |
+
+---
+
+## Architecture Decision Records (ADRs)
+
+All significant architectural decisions are documented in **`docs/adr/`** using the ADR format:
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [ADR-001](docs/adr/ADR-001-clean-architecture.md) | Clean Architecture Layers | Accepted |
+| [ADR-002](docs/adr/ADR-002-cqrs-mediatr.md) | CQRS with MediatR | Accepted |
+| [ADR-003](docs/adr/ADR-003-guid-v7.md) | GUID v7 IDs | Accepted |
+| [ADR-004](docs/adr/ADR-004-manual-mapping.md) | Manual DTO Mapping (no AutoMapper) | Accepted |
+| [ADR-005](docs/adr/ADR-005-domain-events-outbox.md) | Domain Events & Outbox Pattern | Accepted |
+| [ADR-006](docs/adr/ADR-006-soft-delete.md) | Soft Delete Pattern | Accepted |
+| [ADR-007](docs/adr/ADR-007-jwt-refresh-tokens.md) | JWT with Refresh Token Rotation | Accepted |
+| [ADR-008](docs/adr/ADR-008-observability.md) | OpenTelemetry Observability (Jaeger, Prometheus) | Accepted |
+| [ADR-009](docs/adr/ADR-009-caching.md) | Caching Strategy (Absolute & Sliding Expiration) | Accepted |
+| [ADR-010](docs/adr/ADR-010-problem-details.md) | Problem Details (RFC 9457) Error Format | Accepted |
+| [ADR-011](docs/adr/ADR-011-audit-trail.md) | Audit Trail via `ICurrentUserService` | Accepted |
+| [ADR-012](docs/adr/ADR-012-api-versioning.md) | API Versioning via URL Segment | Accepted |
+| [ADR-013](docs/adr/ADR-013-testing-strategy.md) | Testing Strategy (3-Layer Pyramid) | Accepted |
+| [ADR-014](docs/adr/ADR-014-rate-limiting-strategy.md) | Rate Limiting (Granular Policies) | **Accepted** ✨ |
+| [ADR-015](docs/adr/ADR-015-production-ready-enhancements.md) | Production-Ready Enhancements (Polly, DLQ, Versioning, Idempotency, Seeding) | **Accepted** ✨ |
+
+> 💡 **New in this version (ADR-014 & ADR-015)**: Granular rate limiting policies, Polly resilience with exponential backoff, Dead Letter Queue for failed events, Event versioning framework, Idempotency keys, and development data seeding.

@@ -2,6 +2,7 @@ using CleanArchitecture.Application;
 using CleanArchitecture.Infrastructure;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Modules.AI;
+using CleanArchitecture.WebAPI.Attributes;
 using CleanArchitecture.WebAPI.Extensions;
 using CleanArchitecture.WebAPI.Middlewares;
 using Microsoft.EntityFrameworkCore;
@@ -83,7 +84,8 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapControllers().RequireRateLimiting(RateLimitingExtensions.FixedPolicy);
+    // Map controllers and apply default rate limiting (can be overridden per endpoint)
+    app.MapControllers().RequireRateLimiting(RateLimitingExtensions.DefaultPolicy);
     app.MapAppHealthChecks();
     app.UsePrometheusMetrics();
 
@@ -95,8 +97,8 @@ try
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync();
 
-        // Uncomment to seed sample data on first run:
-        // await ApplicationDbContextSeeder.SeedAsync(db);
+        // Seed sample data on first run (development only)
+        await ApplicationDbContextSeeder.SeedAsync(db);
     }
 
     await app.RunAsync();

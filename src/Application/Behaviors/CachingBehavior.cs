@@ -34,12 +34,19 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
             var response = await next();
 
-            var expiration = cacheableRequest.AbsoluteExpiration ?? DefaultExpiration;
+            // Build cache entry options with absolute or sliding expiration
+            var cacheOptions = BuildCacheOptions(cacheableRequest);
+
             await cache.SetStringAsync(
                 cacheableRequest.CacheKey,
                 JsonSerializer.Serialize(response),
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expiration },
+                cacheOptions,
                 cancellationToken);
+
+            logger.LogDebug(
+                "Cached response for {CacheKey} with expiration {ExpirationMs}ms",
+                cacheableRequest.CacheKey,
+                GetExpirationMs(cacheableRequest));
 
             return response;
         }
@@ -58,5 +65,39 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
         }
 
         return result;
+    }
+
+    private static DistributedCacheEntryOptions BuildCacheOptions(ICacheableQuery cacheableRequest)
+    {
+        var options = new DistributedCacheEntryOptions();
+
+        // Absolute expiration takes precedence
+        if (cacheableRequest.AbsoluteExpiration.HasValue)
+        {
+            options.AbsoluteExpirationRelativeToNow = cacheableRequest.AbsoluteExpiration.Value;
+        }
+        // Sliding expiration as fallback
+        else if (cacheableRequest.SlidingExpiration.HasValue)
+        {
+            options.SlidingExpiration = cacheableRequest.SlidingExpiration.Value;
+        }
+        // Default: absolute expiration of 5 minutes
+        else
+        {
+            options.AbsoluteExpirationRelativeToNow = DefaultExpiration;
+        }
+
+        return options;
+    }
+
+    private static double GetExpirationMs(ICacheableQuery cacheableRequest)
+    {
+        if (cacheableRequest.AbsoluteExpiration.HasValue)
+            return cacheableRequest.AbsoluteExpiration.Value.TotalMilliseconds;
+
+        if (cacheableRequest.SlidingExpiration.HasValue)
+            return cacheableRequest.SlidingExpiration.Value.TotalMilliseconds;
+
+        return DefaultExpiration.TotalMilliseconds;
     }
 }

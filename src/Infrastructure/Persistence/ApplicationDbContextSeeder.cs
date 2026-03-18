@@ -13,7 +13,8 @@ public static class ApplicationDbContextSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        if (await context.Products.AnyAsync()) return;
+        if (await context.Products.AnyAsync())
+            return;
 
         var products = new[]
         {
@@ -22,9 +23,18 @@ public static class ApplicationDbContextSeeder
             Product.Create("Mechanical Keyboard", "Compact TKL mechanical keyboard with RGB lighting", 129.99m),
             Product.Create("USB-C Hub", "7-in-1 USB-C hub with 4K HDMI and 100W PD", 79.99m),
             Product.Create("Monitor 27\"", "4K IPS monitor with USB-C connectivity", 599.99m),
+            Product.Create("Webcam 4K", "Professional webcam with auto-focus and noise cancellation", 199.99m),
+            Product.Create("Laptop Stand", "Adjustable aluminum stand for better posture", 39.99m),
+            Product.Create("USB-C Cable (3m)", "High-speed data and power delivery cable", 14.99m),
         };
 
-        context.Products.AddRange(products);
+        // Activate all products on seeding
+        foreach (var product in products)
+        {
+            product.Activate();
+            context.Products.Add(product);
+        }
+
         await context.SaveChangesAsync();
     }
 }
