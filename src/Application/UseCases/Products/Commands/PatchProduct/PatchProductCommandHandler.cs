@@ -1,7 +1,7 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Exceptions;
 using CleanArchitecture.Domain.Interfaces;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.PatchProduct;
@@ -9,7 +9,7 @@ namespace CleanArchitecture.Application.UseCases.Products.Commands.PatchProduct;
 internal sealed class PatchProductCommandHandler(
     IProductRepository productRepository,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<PatchProductCommand, ProductDto>
+    : ICommandHandler<PatchProductCommand, ProductDto>
 {
     public async Task<ProductDto> Handle(
         PatchProductCommand request,

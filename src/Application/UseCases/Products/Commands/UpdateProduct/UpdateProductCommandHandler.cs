@@ -1,7 +1,7 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Exceptions;
 using CleanArchitecture.Domain.Interfaces;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.UpdateProduct;
@@ -9,7 +9,7 @@ namespace CleanArchitecture.Application.UseCases.Products.Commands.UpdateProduct
 internal sealed class UpdateProductCommandHandler(
     IProductRepository productRepository,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<UpdateProductCommand, ProductDto>
+    : ICommandHandler<UpdateProductCommand, ProductDto>
 {
     public async Task<ProductDto> Handle(
         UpdateProductCommand request,

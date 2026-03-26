@@ -1,5 +1,5 @@
 using CleanArchitecture.Application.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -16,7 +16,7 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
     public async Task<TResponse> Handle(
         TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+        Func<Task<TResponse>> next,
         CancellationToken cancellationToken)
     {
         // --- Read from cache (queries only) ---

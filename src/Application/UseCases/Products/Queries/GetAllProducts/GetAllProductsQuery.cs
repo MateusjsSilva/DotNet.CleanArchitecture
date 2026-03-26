@@ -1,6 +1,6 @@
 using CleanArchitecture.Application.Common;
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
-using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 
@@ -18,7 +18,7 @@ public sealed record GetAllProductsQuery(
     string? NameContains = null,
     decimal? MinPrice = null,
     decimal? MaxPrice = null)
-    : IRequest<PagedResult<ProductDto>>, ICacheableQuery
+    : IQuery<PagedResult<ProductDto>>, ICacheableQuery
 {
     /// <summary>
     /// Generates a unique cache key based on query parameters.

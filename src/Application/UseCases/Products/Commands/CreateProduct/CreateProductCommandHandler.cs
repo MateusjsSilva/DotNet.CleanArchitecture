@@ -1,14 +1,14 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Entities;
 using CleanArchitecture.Domain.Interfaces;
-using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.CreateProduct;
 
 internal sealed class CreateProductCommandHandler(
     IProductRepository productRepository,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<CreateProductCommand, ProductDto>
+    : ICommandHandler<CreateProductCommand, ProductDto>
 {
     public async Task<ProductDto> Handle(
         CreateProductCommand request,

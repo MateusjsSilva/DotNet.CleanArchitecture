@@ -1,13 +1,13 @@
 using CleanArchitecture.Domain.Events;
 using CleanArchitecture.Application.UseCases.Products.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace CleanArchitecture.Application.UseCases.Products.Events;
 
 internal sealed class ProductDeletedEventHandler(
     ILogger<ProductDeletedEventHandler> logger)
-    : INotificationHandler<ProductDeletedEvent>
+    : IDomainEventHandler<ProductDeletedEvent>
 {
     public Task Handle(ProductDeletedEvent notification, CancellationToken cancellationToken)
     {

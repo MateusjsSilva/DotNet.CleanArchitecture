@@ -1,5 +1,5 @@
 using FluentValidation;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 
 namespace CleanArchitecture.Application.Behaviors;
 
@@ -10,7 +10,7 @@ internal sealed class ValidationBehavior<TRequest, TResponse>(
 {
     public async Task<TResponse> Handle(
         TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+        Func<Task<TResponse>> next,
         CancellationToken cancellationToken)
     {
         if (!validators.Any())

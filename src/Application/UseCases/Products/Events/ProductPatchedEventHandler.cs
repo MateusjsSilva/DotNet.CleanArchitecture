@@ -1,13 +1,13 @@
 using CleanArchitecture.Domain.Events;
 using CleanArchitecture.Application.UseCases.Products.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace CleanArchitecture.Application.UseCases.Products.Events;
 
 internal sealed class ProductPatchedEventHandler(
     ILogger<ProductPatchedEventHandler> logger)
-    : INotificationHandler<ProductPatchedEvent>
+    : IDomainEventHandler<ProductPatchedEvent>
 {
     public Task Handle(ProductPatchedEvent notification, CancellationToken cancellationToken)
     {

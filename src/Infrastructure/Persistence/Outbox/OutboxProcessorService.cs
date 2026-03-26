@@ -1,5 +1,5 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Domain.Common;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -78,7 +78,7 @@ internal sealed class OutboxProcessorService(
     {
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var messages = await dbContext.OutboxMessages
             .Where(m => m.ProcessedAt == null && !dbContext.DeadLetterMessages.Any(d => d.OutboxMessageId == m.Id))
@@ -97,7 +97,7 @@ internal sealed class OutboxProcessorService(
         {
             await ProcessMessageWithRetryAndIdempotencyAsync(
                 dbContext,
-                publisher,
+                mediator,
                 message,
                 cancellationToken);
         }
@@ -110,7 +110,7 @@ internal sealed class OutboxProcessorService(
 
     private async Task ProcessMessageWithRetryAndIdempotencyAsync(
         ApplicationDbContext dbContext,
-        IPublisher publisher,
+        IMediator mediator,
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
@@ -160,7 +160,7 @@ internal sealed class OutboxProcessorService(
             }
 
             await RetryPolicy.ExecuteAsync(async (ct) =>
-                await publisher.Publish(domainEvent, ct),
+                await mediator.PublishAsync(domainEvent, ct),
                 cancellationToken);
 
             message.ProcessedAt = DateTime.UtcNow;

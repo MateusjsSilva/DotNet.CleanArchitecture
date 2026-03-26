@@ -1,12 +1,12 @@
 using CleanArchitecture.Application.Common;
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Interfaces;
-using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 
 internal sealed class GetAllProductsQueryHandler(IProductRepository productRepository)
-    : IRequestHandler<GetAllProductsQuery, PagedResult<ProductDto>>
+    : IQueryHandler<GetAllProductsQuery, PagedResult<ProductDto>>
 {
     public async Task<PagedResult<ProductDto>> Handle(
         GetAllProductsQuery request,

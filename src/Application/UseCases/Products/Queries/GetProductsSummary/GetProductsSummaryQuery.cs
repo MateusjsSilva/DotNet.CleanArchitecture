@@ -1,5 +1,5 @@
 using CleanArchitecture.Application.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;
 
@@ -7,7 +7,7 @@ namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSum
 /// Example of a Dapper read-side query for complex reporting / projections.
 /// Uses sliding expiration since the summary changes whenever products are added/updated.
 /// </summary>
-public sealed record GetProductsSummaryQuery : IRequest<ProductsSummaryDto>, ICacheableQuery
+public sealed record GetProductsSummaryQuery : IQuery<ProductsSummaryDto>, ICacheableQuery
 {
     public string CacheKey => $"{CacheKeys.ProductCollections}:summary";
 
