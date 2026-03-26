@@ -9,6 +9,7 @@ public sealed class Product : AuditableEntity
     public string? Description { get; private set; }
     public decimal Price { get; private set; }
     public bool IsActive { get; private set; } = true;
+    public byte[] RowVersion { get; private set; } = null!;
 
     private Product() { }
 
@@ -37,6 +38,8 @@ public sealed class Product : AuditableEntity
         Name = name;
         Description = description;
         Price = price;
+
+        RaiseDomainEvent(new ProductUpdatedEvent(Id, Name, Price, Description));
     }
 
     /// <summary>
@@ -46,22 +49,42 @@ public sealed class Product : AuditableEntity
     /// </summary>
     public void Patch(string? name, string? description, decimal? price)
     {
+        var changedFields = new Dictionary<string, object?>();
+
         if (name is not null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            changedFields["Name"] = Name; // Old value
             Name = name;
+            changedFields["NewName"] = name;
         }
 
         if (description is not null)
+        {
+            changedFields["Description"] = Description; // Old value
             Description = description;
+            changedFields["NewDescription"] = description;
+        }
 
         if (price is not null)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(price.Value);
+            changedFields["Price"] = Price; // Old value
             Price = price.Value;
+            changedFields["NewPrice"] = price.Value;
+        }
+
+        if (changedFields.Count > 0)
+        {
+            RaiseDomainEvent(new ProductPatchedEvent(Id, Name, changedFields));
         }
     }
 
-    public void Deactivate() => IsActive = false;
+    public void Deactivate()
+    {
+        IsActive = false;
+        RaiseDomainEvent(new ProductDeletedEvent(Id, Name));
+    }
+
     public void Activate() => IsActive = true;
 }

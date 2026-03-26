@@ -1,6 +1,7 @@
 using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.UseCases.Products.Common;
+using CleanArchitecture.Application.Validators.Common;
 using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.PatchProduct;
@@ -13,8 +14,9 @@ public sealed record PatchProductCommand(
     Guid Id,
     string? Name = null,
     string? Description = null,
-    decimal? Price = null
-) : IRequest<ProductDto>, ICacheInvalidator
+    decimal? Price = null,
+    byte[]? RowVersion = null
+) : IRequest<ProductDto>, ICacheInvalidator, IHasId
 {
     public IEnumerable<string> CacheKeysToInvalidate => ProductCacheInvalidation.GetIndividualProductKeys(Id);
     public IEnumerable<string> CacheKeyPrefixesToInvalidate => ProductCacheInvalidation.GetProductListPrefixes();

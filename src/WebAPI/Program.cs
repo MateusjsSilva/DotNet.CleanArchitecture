@@ -39,6 +39,7 @@ try
     builder.Services.AddObservability(builder.Configuration);
     builder.Services.AddAppHealthChecks(builder.Configuration);
     builder.Services.AddCorsPolicy(builder.Configuration);
+    builder.Services.AddSecurityHeaders();
 
     // Only add rate limiting if not in test environment
     if (isNotTestEnvironment)
@@ -71,6 +72,7 @@ try
     var app = builder.Build();
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.UseSecurityHeaders();
 
     if (app.Environment.IsDevelopment())
     {

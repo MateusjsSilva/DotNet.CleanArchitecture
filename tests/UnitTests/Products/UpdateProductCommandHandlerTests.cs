@@ -11,6 +11,7 @@ public sealed class UpdateProductCommandHandlerTests
     private readonly IProductRepository _productRepository = Substitute.For<IProductRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly UpdateProductCommandHandler _handler;
+    private static readonly byte[] TestRowVersion = [1, 2, 3, 4, 5, 6, 7, 8];
 
     public UpdateProductCommandHandlerTests()
     {
@@ -22,11 +23,14 @@ public sealed class UpdateProductCommandHandlerTests
     {
         // Arrange
         var product = Product.Create("Old Name", "Old Desc", 10m);
+        // Simulate entity with RowVersion from database
+        typeof(Product).GetProperty("RowVersion")!.SetValue(product, TestRowVersion);
+
         _productRepository
             .GetByIdAsync(product.Id, Arg.Any<CancellationToken>())
             .Returns(product);
 
-        var command = new UpdateProductCommand(product.Id, "New Name", "New Desc", 99m);
+        var command = new UpdateProductCommand(product.Id, "New Name", "New Desc", 99m, TestRowVersion);
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -48,7 +52,7 @@ public sealed class UpdateProductCommandHandlerTests
             .GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns((Product?)null);
 
-        var command = new UpdateProductCommand(Guid.NewGuid(), "Name", null, 10m);
+        var command = new UpdateProductCommand(Guid.NewGuid(), "Name", null, 10m, TestRowVersion);
 
         // Act & Assert
         var act = async () => await _handler.Handle(command, CancellationToken.None);

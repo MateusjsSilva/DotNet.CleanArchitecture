@@ -10,6 +10,7 @@ using CleanArchitecture.Application.UseCases.Products.Queries.GetProductById;
 using CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;
 using CleanArchitecture.WebAPI.Models;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CleanArchitecture.WebAPI.Controllers;
@@ -17,9 +18,11 @@ namespace CleanArchitecture.WebAPI.Controllers;
 [ApiController]
 [ApiVersion(1)]
 [Route("api/v{version:apiVersion}/products")]
+[Authorize] // Require authentication for all endpoints (except those with [AllowAnonymous])
 public sealed class ProductsController(ISender sender) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous] // Public endpoint - anyone can view products
     [ProducesResponseType<ApiResponse<PagedResult<ProductDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] bool onlyActive = true,
@@ -39,6 +42,7 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous] // Public endpoint - anyone can view product details
     [ProducesResponseType<ApiResponse<ProductDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(
@@ -98,6 +102,7 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     }
 
     [HttpGet("summary")]
+    [AllowAnonymous] // Public endpoint - public summary information
     [ProducesResponseType<ApiResponse<ProductsSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSummary(CancellationToken cancellationToken = default)
     {

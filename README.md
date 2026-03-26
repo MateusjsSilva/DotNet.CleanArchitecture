@@ -704,5 +704,6 @@ All significant architectural decisions are documented in **`docs/adr/`** using 
 | [ADR-013](docs/adr/ADR-013-testing-strategy.md) | Testing Strategy (3-Layer Pyramid) | Accepted |
 | [ADR-014](docs/adr/ADR-014-rate-limiting-strategy.md) | Rate Limiting (Granular Policies) | **Accepted** ✨ |
 | [ADR-015](docs/adr/ADR-015-production-ready-enhancements.md) | Production-Ready Enhancements (Polly, DLQ, Versioning, Idempotency, Seeding) | **Accepted** ✨ |
+| [ADR-016](docs/adr/ADR-016-pipeline-redundancy-elimination.md) | Pipeline Redundancy Elimination | **Accepted** 🚀 |
 
-> 💡 **New in this version (ADR-014 & ADR-015)**: Granular rate limiting policies, Polly resilience with exponential backoff, Dead Letter Queue for failed events, Event versioning framework, Idempotency keys, and development data seeding.
+> 💡 **New in this version (ADR-014, ADR-015 & ADR-016)**: Granular rate limiting policies, Polly resilience with exponential backoff, Dead Letter Queue for failed events, Event versioning framework, Idempotency keys, development data seeding, and pipeline redundancy elimination.

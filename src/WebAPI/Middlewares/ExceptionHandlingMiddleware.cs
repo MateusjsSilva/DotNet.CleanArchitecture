@@ -31,6 +31,10 @@ public sealed class ExceptionHandlingMiddleware(
                 StatusCodes.Status404NotFound,
                 CreateProblemDetails(StatusCodes.Status404NotFound, "Not Found", notFound.Message)),
 
+            ConcurrencyException concurrency => (
+                StatusCodes.Status409Conflict,
+                CreateProblemDetails(StatusCodes.Status409Conflict, "Concurrency Conflict", concurrency.Message)),
+
             DomainException domain => (
                 StatusCodes.Status400BadRequest,
                 CreateProblemDetails(StatusCodes.Status400BadRequest, "Domain Error", domain.Message)),

@@ -6,5 +6,6 @@ public sealed record ProductDto(
     string? Description,
     decimal Price,
     bool IsActive,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    byte[] RowVersion
 );

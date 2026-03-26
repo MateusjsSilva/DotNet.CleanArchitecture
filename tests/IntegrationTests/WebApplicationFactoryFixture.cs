@@ -1,10 +1,12 @@
 using CleanArchitecture.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Respawn;
 using Testcontainers.MsSql;
 
@@ -78,6 +80,23 @@ public sealed class WebApplicationFactoryFixture
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /// <summary>Creates an HTTP client with authenticated test user.</summary>
+    public HttpClient CreateAuthenticatedClient() => CreateClient();
+
+    /// <summary>Creates an anonymous HTTP client (no authentication).</summary>
+    public HttpClient CreateAnonymousClient()
+    {
+        return WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                // Remove authentication entirely for anonymous client
+                services.RemoveAll<IAuthenticationService>();
+                services.RemoveAll<IAuthenticationSchemeProvider>();
+            });
+        }).CreateClient();
+    }
+
     /// <summary>Resets all test data so each test class starts with a clean database.</summary>
     public async Task ResetDatabaseAsync()
     {
@@ -102,6 +121,20 @@ public sealed class WebApplicationFactoryFixture
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
+
+        // Configure test authentication globally
+        builder.ConfigureServices(services =>
+        {
+            // Replace JWT authentication with test authentication
+            services.RemoveAll<IAuthenticationService>();
+            services.RemoveAll<IAuthenticationSchemeProvider>();
+
+            services.AddAuthentication(TestAuthHandler.TestScheme)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                    TestAuthHandler.TestScheme, _ => { });
+
+            services.AddAuthorization();
+        });
 
         if (_useContainer && _container is not null)
         {

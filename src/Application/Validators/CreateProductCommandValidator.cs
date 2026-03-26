@@ -1,4 +1,5 @@
 using CleanArchitecture.Application.UseCases.Products.Commands.CreateProduct;
+using CleanArchitecture.Application.Validators.Common;
 using CleanArchitecture.Domain.Interfaces;
 using FluentValidation;
 
@@ -9,8 +10,7 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
     public CreateProductCommandValidator(IProductRepository productRepository)
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("Product name is required.")
-            .MaximumLength(200).WithMessage("Product name must not exceed 200 characters.");
+            .ValidateProductName();
 
         // Only hit the DB when the basic name rules pass
         RuleFor(x => x.Name)
@@ -19,10 +19,9 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
             .When(x => !string.IsNullOrWhiteSpace(x.Name));
 
         RuleFor(x => x.Description)
-            .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters.")
-            .When(x => x.Description is not null);
+            .ValidateProductDescription();
 
         RuleFor(x => x.Price)
-            .GreaterThan(0).WithMessage("Price must be greater than zero.");
+            .ValidateProductPrice();
     }
 }

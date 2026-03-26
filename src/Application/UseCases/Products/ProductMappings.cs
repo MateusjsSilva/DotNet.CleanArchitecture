@@ -11,7 +11,8 @@ internal static class ProductMappings
         product.Description,
         product.Price,
         product.IsActive,
-        product.CreatedAt);
+        product.CreatedAt,
+        product.RowVersion);
 
     internal static IReadOnlyList<ProductDto> ToDtoList(this IEnumerable<Product> products) =>
         products.Select(p => p.ToDto()).ToList();
