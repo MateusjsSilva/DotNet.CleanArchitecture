@@ -7,7 +7,7 @@ namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductById
 public sealed record GetProductByIdQuery(Guid Id)
     : IRequest<ProductDto?>, ICacheableQuery
 {
-    public string CacheKey => $"product:{Id}";
+    public string CacheKey => CacheKeys.Product(Id);
 
     /// <summary>
     /// Uses absolute expiration (10 minutes fixed).

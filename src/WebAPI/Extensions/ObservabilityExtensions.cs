@@ -24,7 +24,7 @@ internal static class ObservabilityExtensions
                 tracing
                     .AddAspNetCoreInstrumentation(opts => opts.RecordException = true)
                     .AddHttpClientInstrumentation()
-                    .AddEntityFrameworkCoreInstrumentation(opts => opts.SetDbStatementForText = true)
+                    .AddEntityFrameworkCoreInstrumentation()
                     .AddSource(ApplicationActivitySource.Name);
 
                 if (!string.IsNullOrWhiteSpace(otlpEndpoint))

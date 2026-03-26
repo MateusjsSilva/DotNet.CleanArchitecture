@@ -16,18 +16,23 @@ public sealed class GetAllProductsQueryHandlerTests
         _handler = new GetAllProductsQueryHandler(_productRepository);
     }
 
+    // Helper: stub GetPagedAsync to return the given list as both items and totalCount
+    private void SetupPaged(IReadOnlyList<Product> products)
+    {
+        _productRepository
+            .GetPagedAsync(
+                Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
+                Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns((products, products.Count));
+    }
+
     [Fact]
     public async Task Handle_WhenOnlyActiveIsTrue_ShouldReturnOnlyActiveProducts()
     {
         // Arrange
-        var products = new List<Product>
-        {
-            Product.Create("Active Product", "Description", 10.00m)
-        };
-
-        _productRepository
-            .GetActiveProductsAsync(Arg.Any<CancellationToken>())
-            .Returns(products);
+        var products = new List<Product> { Product.Create("Active Product", "Description", 10.00m) };
+        SetupPaged(products);
 
         var query = new GetAllProductsQuery(OnlyActive: true);
 
@@ -38,11 +43,11 @@ public sealed class GetAllProductsQueryHandlerTests
         result.TotalCount.Should().Be(1);
         result.Items[0].Name.Should().Be("Active Product");
 
-        await _productRepository.Received(1)
-            .GetActiveProductsAsync(Arg.Any<CancellationToken>());
-
-        await _productRepository.DidNotReceive()
-            .GetAllAsync(Arg.Any<CancellationToken>());
+        await _productRepository.Received(1).GetPagedAsync(
+            Arg.Is<bool>(v => v == true),  // onlyActive
+            Arg.Any<string?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
+            Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<int>(), Arg.Any<int>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -54,10 +59,7 @@ public sealed class GetAllProductsQueryHandlerTests
             Product.Create("Product 1", null, 10.00m),
             Product.Create("Product 2", null, 20.00m)
         };
-
-        _productRepository
-            .GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(products);
+        SetupPaged(products);
 
         var query = new GetAllProductsQuery(OnlyActive: false);
 
@@ -67,17 +69,18 @@ public sealed class GetAllProductsQueryHandlerTests
         // Assert
         result.TotalCount.Should().Be(2);
 
-        await _productRepository.Received(1)
-            .GetAllAsync(Arg.Any<CancellationToken>());
+        await _productRepository.Received(1).GetPagedAsync(
+            Arg.Is<bool>(v => v == false),  // onlyActive
+            Arg.Any<string?>(), Arg.Any<decimal?>(), Arg.Any<decimal?>(),
+            Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<int>(), Arg.Any<int>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_WhenNoProductsExist_ShouldReturnEmptyPagedResult()
     {
         // Arrange
-        _productRepository
-            .GetActiveProductsAsync(Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<Product>());
+        SetupPaged([]);
 
         var query = new GetAllProductsQuery();
 

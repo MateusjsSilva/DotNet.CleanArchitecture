@@ -1,5 +1,6 @@
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.Interfaces;
+using CleanArchitecture.Domain.Exceptions;
 using CleanArchitecture.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +39,7 @@ internal sealed class AuthService(
         if (!result.Succeeded)
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Registration failed: {errors}");
+            throw new DomainException($"Registration failed: {errors}");
         }
 
         return await GenerateTokensAsync(user, cancellationToken);
@@ -62,29 +63,45 @@ internal sealed class AuthService(
         string refreshToken,
         CancellationToken cancellationToken = default)
     {
+        var tokenHash = HashToken(refreshToken);
+
         var token = await dbContext.RefreshTokens
             .Include(t => t.User)
-            .SingleOrDefaultAsync(t => t.Token == refreshToken, cancellationToken)
+            .SingleOrDefaultAsync(t => t.Token == tokenHash, cancellationToken)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
         if (!token.IsActive)
             throw new UnauthorizedAccessException("Refresh token is expired or revoked.");
 
-        // Rotate: revoke old, issue new
+        // Use an explicit transaction so that revoking the old token and issuing the
+        // new one are atomic — a crash between the two SaveChanges calls would otherwise
+        // leave the old token still active.
+        // InMemory EF Core (used in tests/dev) does not support transactions; skip in that case.
+        await using var transaction = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         token.RevokedAt = DateTime.UtcNow;
 
         var newTokens = await GenerateTokensAsync(token.User, cancellationToken);
-        token.ReplacedByToken = newTokens.RefreshToken;
+
+        // Store the hash of the replacement so the audit trail stays consistent
+        token.ReplacedByToken = HashToken(newTokens.RefreshToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
 
         return newTokens;
     }
 
     public async Task RevokeAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
+        var tokenHash = HashToken(refreshToken);
+
         var token = await dbContext.RefreshTokens
-            .SingleOrDefaultAsync(t => t.Token == refreshToken, cancellationToken)
+            .SingleOrDefaultAsync(t => t.Token == tokenHash, cancellationToken)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
         if (!token.IsActive)
@@ -102,9 +119,13 @@ internal sealed class AuthService(
         var accessToken = GenerateAccessToken(user, roles);
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
 
+        // Generate a cryptographically random token; return the raw value to the caller
+        // but persist only its SHA-256 hash so a DB breach does not expose usable tokens.
+        var rawToken = GenerateSecureToken();
+
         var refreshToken = new RefreshToken
         {
-            Token = GenerateSecureToken(),
+            Token = HashToken(rawToken),
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(_jwt.RefreshTokenExpiryDays)
         };
@@ -112,7 +133,7 @@ internal sealed class AuthService(
         await dbContext.RefreshTokens.AddAsync(refreshToken, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new AuthTokensDto(accessToken, refreshToken.Token, expiresAt);
+        return new AuthTokensDto(accessToken, rawToken, expiresAt);
     }
 
     private string GenerateAccessToken(ApplicationUser user, IList<string> roles)
@@ -143,5 +164,15 @@ internal sealed class AuthService(
     {
         var bytes = RandomNumberGenerator.GetBytes(64);
         return Convert.ToBase64String(bytes);
+    }
+
+    /// <summary>
+    /// Returns the hex-encoded SHA-256 hash of <paramref name="token"/>.
+    /// Only the hash is stored in the database; the raw token is sent to the client.
+    /// </summary>
+    private static string HashToken(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hash);
     }
 }

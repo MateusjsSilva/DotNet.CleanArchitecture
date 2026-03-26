@@ -9,7 +9,7 @@ namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSum
 /// </summary>
 public sealed record GetProductsSummaryQuery : IRequest<ProductsSummaryDto>, ICacheableQuery
 {
-    public string CacheKey => "products:summary";
+    public string CacheKey => $"{CacheKeys.ProductCollections}:summary";
 
     /// <summary>
     /// Uses sliding expiration (3 minutes).

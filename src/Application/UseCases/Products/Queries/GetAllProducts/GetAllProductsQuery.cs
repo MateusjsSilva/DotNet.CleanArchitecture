@@ -25,7 +25,7 @@ public sealed record GetAllProductsQuery(
     /// Changes to any filter automatically invalidate the cache.
     /// </summary>
     public string CacheKey =>
-        $"products:page={Page}:pageSize={PageSize}:orderBy={OrderBy}:ascending={Ascending}" +
+        $"{CacheKeys.ProductCollections}:page={Page}:pageSize={PageSize}:orderBy={OrderBy}:ascending={Ascending}" +
         $":onlyActive={OnlyActive}:name={NameContains}:minPrice={MinPrice}:maxPrice={MaxPrice}";
 
     /// <summary>

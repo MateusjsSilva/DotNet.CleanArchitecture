@@ -103,6 +103,150 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         body.Data.Price.Should().Be(50m);
     }
 
+    // --- PATCH Tests ---
+
+    [Fact]
+    public async Task Patch_WithNameOnly_ShouldUpdateOnlyName()
+    {
+        // Arrange — create a product first
+        var created = await CreateProductAsync("Original Name", 25.50m);
+
+        var patchPayload = new { Name = "Patched Name" };
+
+        // Act
+        var response = await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
+        body!.Data.Name.Should().Be("Patched Name");
+        body.Data.Price.Should().Be(25.50m); // unchanged
+        body.Data.Description.Should().Be(created.Description); // unchanged
+    }
+
+    [Fact]
+    public async Task Patch_WithPriceOnly_ShouldUpdateOnlyPrice()
+    {
+        // Arrange — create a product first
+        var created = await CreateProductAsync("Original Name", 25.50m);
+
+        var patchPayload = new { Price = 99.99m };
+
+        // Act
+        var response = await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
+        body!.Data.Name.Should().Be("Original Name"); // unchanged
+        body.Data.Price.Should().Be(99.99m);
+        body.Data.Description.Should().Be(created.Description); // unchanged
+    }
+
+    [Fact]
+    public async Task Patch_WithDescriptionOnly_ShouldUpdateOnlyDescription()
+    {
+        // Arrange — create a product first
+        var created = await CreateProductAsync("Original Name", 25.50m);
+
+        var patchPayload = new { Description = "New description" };
+
+        // Act
+        var response = await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
+        body!.Data.Name.Should().Be("Original Name"); // unchanged
+        body.Data.Price.Should().Be(25.50m); // unchanged
+        body.Data.Description.Should().Be("New description");
+    }
+
+    [Fact]
+    public async Task Patch_WithMultipleFields_ShouldUpdateAllSpecifiedFields()
+    {
+        // Arrange — create a product first
+        var created = await CreateProductAsync("Original Name", 25.50m);
+
+        var patchPayload = new {
+            Name = "Patched Name",
+            Price = 199.99m,
+            Description = "Patched description"
+        };
+
+        // Act
+        var response = await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
+        body!.Data.Name.Should().Be("Patched Name");
+        body.Data.Price.Should().Be(199.99m);
+        body.Data.Description.Should().Be("Patched description");
+    }
+
+    [Fact]
+    public async Task Patch_WithNonExistentId_ShouldReturn404()
+    {
+        var patchPayload = new { Name = "Patched Name" };
+
+        var response = await _client.PatchAsync($"/api/v1/products/{Guid.NewGuid()}",
+            JsonContent.Create(patchPayload));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Patch_WithInvalidPrice_ShouldReturn422()
+    {
+        var created = await CreateProductAsync("Original Name", 25.50m);
+        var patchPayload = new { Price = -10m };
+
+        var response = await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task Patch_WithEmptyName_ShouldReturn422()
+    {
+        var created = await CreateProductAsync("Original Name", 25.50m);
+        var patchPayload = new { Name = "" };
+
+        var response = await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task Patch_AfterCacheHit_ShouldReturnFreshData()
+    {
+        // Arrange — create and prime cache with first GET
+        var created = await CreateProductAsync("Cached Name", 10m);
+        await _client.GetAsync($"/api/v1/products/{created.Id}"); // prime cache
+
+        // Act — patch (invalidates cache)
+        var patchPayload = new { Name = "Patched Fresh Name" };
+        await _client.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        // Assert — next GET should return updated data (not stale cached value)
+        var getResponse = await _client.GetAsync($"/api/v1/products/{created.Id}");
+        var body = await getResponse.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
+        body!.Data.Name.Should().Be("Patched Fresh Name");
+        body.Data.Price.Should().Be(10m); // unchanged
+    }
+
     // --- Helper ---
 
     private async Task<ProductDto> CreateProductAsync(string name, decimal price)

@@ -32,7 +32,7 @@ internal static class RateLimitingExtensions
                 cfg.PermitLimit = 5;
                 cfg.Window = TimeSpan.FromMinutes(1);
                 cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                cfg.QueueLimit = 2;
+                cfg.QueueLimit = 0;
             });
 
             // Products endpoints: standard rate limiting for normal CRUD operations
@@ -41,7 +41,7 @@ internal static class RateLimitingExtensions
                 cfg.PermitLimit = 100;
                 cfg.Window = TimeSpan.FromMinutes(1);
                 cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                cfg.QueueLimit = 10;
+                cfg.QueueLimit = 0;
             });
 
             // AI endpoints: relaxed rate limiting (resource-intensive operations)
@@ -50,7 +50,7 @@ internal static class RateLimitingExtensions
                 cfg.PermitLimit = 30;
                 cfg.Window = TimeSpan.FromMinutes(1);
                 cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                cfg.QueueLimit = 5;
+                cfg.QueueLimit = 0;
             });
 
             // Default fallback policy for other endpoints
@@ -59,7 +59,7 @@ internal static class RateLimitingExtensions
                 cfg.PermitLimit = 50;
                 cfg.Window = TimeSpan.FromMinutes(1);
                 cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                cfg.QueueLimit = 5;
+                cfg.QueueLimit = 0;
             });
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

@@ -9,7 +9,7 @@ namespace CleanArchitecture.Application.Common;
 ///     public sealed record GetProductByIdQuery(Guid Id)
 ///         : IRequest&lt;ProductDto?&gt;, ICacheableQuery
 ///     {
-///         public string CacheKey => $"product:{Id}";
+///         public string CacheKey => CacheKeys.Product(Id);
 ///         public TimeSpan? AbsoluteExpiration => TimeSpan.FromMinutes(10);
 ///         public TimeSpan? SlidingExpiration => null;
 ///     }
@@ -20,7 +20,7 @@ namespace CleanArchitecture.Application.Common;
 ///     public sealed record GetAllProductsQuery(...)
 ///         : IRequest&lt;PagedResult&lt;ProductDto&gt;&gt;, ICacheableQuery
 ///     {
-///         public string CacheKey => $"products:{page}:{pageSize}";
+///         public string CacheKey => $"{CacheKeys.ProductCollections}:page={page}:pageSize={pageSize}";
 ///         public TimeSpan? AbsoluteExpiration => null;
 ///         public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
 ///     }

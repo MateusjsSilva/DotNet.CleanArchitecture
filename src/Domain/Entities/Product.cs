@@ -39,6 +39,29 @@ public sealed class Product : AuditableEntity
         Price = price;
     }
 
+    /// <summary>
+    /// Applies a partial update — only fields with a non-null value are changed.
+    /// This supports HTTP PATCH semantics without requiring the caller to supply
+    /// all fields.
+    /// </summary>
+    public void Patch(string? name, string? description, decimal? price)
+    {
+        if (name is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            Name = name;
+        }
+
+        if (description is not null)
+            Description = description;
+
+        if (price is not null)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(price.Value);
+            Price = price.Value;
+        }
+    }
+
     public void Deactivate() => IsActive = false;
     public void Activate() => IsActive = true;
 }

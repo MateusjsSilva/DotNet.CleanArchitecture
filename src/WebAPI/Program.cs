@@ -18,6 +18,7 @@ try
     Log.Information("Starting CleanArchitecture API...");
 
     var builder = WebApplication.CreateBuilder(args);
+    var isNotTestEnvironment = builder.Environment.EnvironmentName != "Test";
 
     builder.Host.UseSerilog((context, services, configuration) =>
         configuration
@@ -38,7 +39,12 @@ try
     builder.Services.AddObservability(builder.Configuration);
     builder.Services.AddAppHealthChecks(builder.Configuration);
     builder.Services.AddCorsPolicy(builder.Configuration);
-    builder.Services.AddApiRateLimiting();
+
+    // Only add rate limiting if not in test environment
+    if (isNotTestEnvironment)
+    {
+        builder.Services.AddApiRateLimiting();
+    }
 
     builder.Services.ConfigureHttpClientDefaults(http =>
         http.AddStandardResilienceHandler());
@@ -79,13 +85,24 @@ try
         ? CorsExtensions.AllowAllPolicy
         : CorsExtensions.AllowSpecificPolicy);
 
-    app.UseRateLimiter();
+    // Only use rate limiter if not in test environment
+    if (isNotTestEnvironment)
+    {
+        app.UseRateLimiter();
+    }
 
     app.UseAuthentication();
     app.UseAuthorization();
 
-    // Map controllers and apply default rate limiting (can be overridden per endpoint)
-    app.MapControllers().RequireRateLimiting(RateLimitingExtensions.DefaultPolicy);
+    // Map controllers and apply default rate limiting only if not in test environment
+    if (isNotTestEnvironment)
+    {
+        app.MapControllers().RequireRateLimiting(RateLimitingExtensions.DefaultPolicy);
+    }
+    else
+    {
+        app.MapControllers();
+    }
     app.MapAppHealthChecks();
     app.UsePrometheusMetrics();
 

@@ -34,14 +34,15 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
             var response = await next();
 
-            // Build cache entry options with absolute or sliding expiration
-            var cacheOptions = BuildCacheOptions(cacheableRequest);
-
             await cache.SetStringAsync(
                 cacheableRequest.CacheKey,
                 JsonSerializer.Serialize(response),
-                cacheOptions,
+                BuildCacheOptions(cacheableRequest),
                 cancellationToken);
+
+            // Register this key in the prefix registry so prefix-based invalidation
+            // can find and remove it later (e.g. when a product mutation occurs).
+            await RegisterKeyInPrefixRegistryAsync(cacheableRequest.CacheKey, cancellationToken);
 
             logger.LogDebug(
                 "Cached response for {CacheKey} with expiration {ExpirationMs}ms",
@@ -62,30 +63,86 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
                 await cache.RemoveAsync(key, cancellationToken);
                 logger.LogDebug("Cache evicted for {CacheKey}", key);
             }
+
+            foreach (var prefix in invalidator.CacheKeyPrefixesToInvalidate)
+            {
+                await InvalidatePrefixAsync(prefix, cancellationToken);
+            }
         }
 
         return result;
     }
 
+    // ── Prefix registry helpers ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Adds <paramref name="key"/> to a registry set stored under the distributed cache
+    /// key <c>cache:registry:{prefix}</c>, where prefix is the portion of the key before
+    /// the first colon (e.g. "products" for "products:page=1:...").
+    /// </summary>
+    private async Task RegisterKeyInPrefixRegistryAsync(string key, CancellationToken ct)
+    {
+        var prefix = ExtractPrefix(key);
+        var registryKey = CacheKeys.Registry(prefix);
+
+        var existing = await cache.GetStringAsync(registryKey, ct);
+        var keys = existing is null
+            ? new HashSet<string>()
+            : JsonSerializer.Deserialize<HashSet<string>>(existing)!;
+
+        if (!keys.Add(key))
+            return; // already registered — nothing to update
+
+        // Keep the registry alive longer than the entries themselves
+        await cache.SetStringAsync(
+            registryKey,
+            JsonSerializer.Serialize(keys),
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) },
+            ct);
+    }
+
+    /// <summary>
+    /// Removes every cache key registered under the given <paramref name="prefix"/>
+    /// and then removes the registry entry itself.
+    /// </summary>
+    private async Task InvalidatePrefixAsync(string prefix, CancellationToken ct)
+    {
+        var registryKey = CacheKeys.Registry(prefix);
+
+        var existing = await cache.GetStringAsync(registryKey, ct);
+        if (existing is null)
+        {
+            logger.LogDebug("No cache registry found for prefix '{Prefix}' — nothing to invalidate.", prefix);
+            return;
+        }
+
+        var keys = JsonSerializer.Deserialize<HashSet<string>>(existing)!;
+
+        foreach (var key in keys)
+        {
+            await cache.RemoveAsync(key, ct);
+            logger.LogDebug("Cache evicted '{CacheKey}' via prefix '{Prefix}'", key, prefix);
+        }
+
+        await cache.RemoveAsync(registryKey, ct);
+        logger.LogDebug("Cache prefix registry '{RegistryKey}' cleared ({Count} entries).", registryKey, keys.Count);
+    }
+
+    private static string ExtractPrefix(string key) =>
+        key.Contains(':') ? key[..key.IndexOf(':')] : key;
+
+    // ── Cache option helpers ──────────────────────────────────────────────────
+
     private static DistributedCacheEntryOptions BuildCacheOptions(ICacheableQuery cacheableRequest)
     {
         var options = new DistributedCacheEntryOptions();
 
-        // Absolute expiration takes precedence
         if (cacheableRequest.AbsoluteExpiration.HasValue)
-        {
             options.AbsoluteExpirationRelativeToNow = cacheableRequest.AbsoluteExpiration.Value;
-        }
-        // Sliding expiration as fallback
         else if (cacheableRequest.SlidingExpiration.HasValue)
-        {
             options.SlidingExpiration = cacheableRequest.SlidingExpiration.Value;
-        }
-        // Default: absolute expiration of 5 minutes
         else
-        {
             options.AbsoluteExpirationRelativeToNow = DefaultExpiration;
-        }
 
         return options;
     }
