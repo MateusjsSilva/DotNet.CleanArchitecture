@@ -72,7 +72,7 @@ try
     var app = builder.Build();
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
-    app.UseSecurityHeaders();
+    app.UseSecurityHeaders(app.Environment);
 
     if (app.Environment.IsDevelopment())
     {

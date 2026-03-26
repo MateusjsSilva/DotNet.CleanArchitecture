@@ -16,10 +16,13 @@ public static class SecurityHeadersExtensions
         return services;
     }
 
-    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app, IWebHostEnvironment env)
     {
-        // HSTS (HTTP Strict Transport Security)
-        app.UseHsts();
+        // HSTS (HTTP Strict Transport Security) - only in production
+        if (env.IsProduction())
+        {
+            app.UseHsts();
+        }
 
         // Security Headers Middleware
         app.Use(async (context, next) =>

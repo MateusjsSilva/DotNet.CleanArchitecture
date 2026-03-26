@@ -12,18 +12,18 @@ public static class ProductCacheInvalidation
     /// Gets cache keys to invalidate for a specific product.
     /// </summary>
     /// <param name="productId">The product ID</param>
-    /// <returns>Enumerable of specific product cache keys to invalidate</returns>
+    /// <returns>Array of specific product cache keys to invalidate</returns>
     public static IEnumerable<string> GetIndividualProductKeys(Guid productId)
     {
-        yield return CacheKeys.Product(productId);
+        return [CacheKeys.Product(productId)];
     }
 
     /// <summary>
     /// Gets cache key prefixes to invalidate for product list operations.
     /// </summary>
-    /// <returns>Enumerable of cache prefixes to invalidate (affects all product lists)</returns>
+    /// <returns>Array of cache prefixes to invalidate (affects all product lists)</returns>
     public static IEnumerable<string> GetProductListPrefixes()
     {
-        yield return CacheKeys.ProductCollections;
+        return [CacheKeys.ProductCollections];
     }
 }
