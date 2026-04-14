@@ -1,4 +1,4 @@
-using CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;
+using CleanArchitecture.Application.DTOs;
 
 namespace CleanArchitecture.Application.Interfaces;
 

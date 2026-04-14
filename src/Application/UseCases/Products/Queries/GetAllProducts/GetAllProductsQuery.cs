@@ -28,6 +28,8 @@ public sealed record GetAllProductsQuery(
         $"{CacheKeys.ProductCollections}:page={Page}:pageSize={PageSize}:orderBy={OrderBy}:ascending={Ascending}" +
         $":onlyActive={OnlyActive}:name={NameContains}:minPrice={MinPrice}:maxPrice={MaxPrice}";
 
+    public string? CacheKeyPrefix => CacheKeys.ProductCollections;
+
     /// <summary>
     /// Uses sliding expiration (5 minutes).
     /// Cache expires only if not accessed for 5 minutes.

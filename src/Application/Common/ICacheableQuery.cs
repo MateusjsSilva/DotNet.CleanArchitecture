@@ -34,6 +34,21 @@ public interface ICacheableQuery
     string CacheKey { get; }
 
     /// <summary>
+    /// The prefix group this cache key belongs to.
+    /// Used by the CachingBehavior registry so prefix-based invalidation
+    /// (e.g. from <see cref="ICacheInvalidator.CacheKeyPrefixesToInvalidate"/>) can
+    /// locate and remove all related keys at once.
+    ///
+    /// Must match the prefix string used in the invalidating command's
+    /// <see cref="ICacheInvalidator.CacheKeyPrefixesToInvalidate"/>.
+    ///
+    /// Examples:
+    ///   <c>CacheKeys.ProductCollections</c>  for list/summary queries
+    ///   <c>CacheKeys.Product(Id)</c>          for single-entity queries (use exact key, no prefix)
+    /// </summary>
+    string? CacheKeyPrefix => null;
+
+    /// <summary>
     /// Absolute expiration time (fixed duration from creation).
     /// Good for data that doesn't change frequently.
     /// If both absolute and sliding are set, absolute takes precedence.

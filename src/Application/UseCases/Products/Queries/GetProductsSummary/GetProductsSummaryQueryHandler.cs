@@ -1,4 +1,5 @@
 using CleanArchitecture.Application.Common.Mediator;
+using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.Interfaces;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;

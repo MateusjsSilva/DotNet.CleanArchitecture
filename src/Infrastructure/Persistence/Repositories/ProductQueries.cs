@@ -1,5 +1,5 @@
+using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.Interfaces;
-using CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;
 using Dapper;
 
 namespace CleanArchitecture.Infrastructure.Persistence.Repositories;

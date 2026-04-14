@@ -42,7 +42,8 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
             // Register this key in the prefix registry so prefix-based invalidation
             // can find and remove it later (e.g. when a product mutation occurs).
-            await RegisterKeyInPrefixRegistryAsync(cacheableRequest.CacheKey, cancellationToken);
+            if (cacheableRequest.CacheKeyPrefix is not null)
+                await RegisterKeyInPrefixRegistryAsync(cacheableRequest.CacheKeyPrefix, cacheableRequest.CacheKey, cancellationToken);
 
             logger.LogDebug(
                 "Cached response for {CacheKey} with expiration {ExpirationMs}ms",
@@ -73,16 +74,16 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
         return result;
     }
 
-    // ── Prefix registry helpers ───────────────────────────────────────────────
+    // ── Prefix registry helpers ──────────────────────────────────────────────
 
     /// <summary>
     /// Adds <paramref name="key"/> to a registry set stored under the distributed cache
-    /// key <c>cache:registry:{prefix}</c>, where prefix is the portion of the key before
-    /// the first colon (e.g. "products" for "products:page=1:...").
+    /// key <c>registry:{prefix}</c>. The <paramref name="prefix"/> must match the value
+    /// used in <see cref="ICacheInvalidator.CacheKeyPrefixesToInvalidate"/> so that
+    /// prefix-based invalidation can locate and remove all related keys.
     /// </summary>
-    private async Task RegisterKeyInPrefixRegistryAsync(string key, CancellationToken ct)
+    private async Task RegisterKeyInPrefixRegistryAsync(string prefix, string key, CancellationToken ct)
     {
-        var prefix = ExtractPrefix(key);
         var registryKey = CacheKeys.Registry(prefix);
 
         var existing = await cache.GetStringAsync(registryKey, ct);
@@ -127,9 +128,6 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
         await cache.RemoveAsync(registryKey, ct);
         logger.LogDebug("Cache prefix registry '{RegistryKey}' cleared ({Count} entries).", registryKey, keys.Count);
     }
-
-    private static string ExtractPrefix(string key) =>
-        key.Contains(':') ? key[..key.IndexOf(':')] : key;
 
     // ── Cache option helpers ──────────────────────────────────────────────────
 

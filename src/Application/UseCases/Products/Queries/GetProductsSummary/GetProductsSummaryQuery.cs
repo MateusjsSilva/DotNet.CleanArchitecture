@@ -1,5 +1,6 @@
 using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.Common.Mediator;
+using CleanArchitecture.Application.DTOs;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductsSummary;
 
@@ -11,6 +12,8 @@ public sealed record GetProductsSummaryQuery : IQuery<ProductsSummaryDto>, ICach
 {
     public string CacheKey => $"{CacheKeys.ProductCollections}:summary";
 
+    public string? CacheKeyPrefix => CacheKeys.ProductCollections;
+
     /// <summary>
     /// Uses sliding expiration (3 minutes).
     /// If the summary is accessed frequently, cache stays alive.
@@ -20,10 +23,3 @@ public sealed record GetProductsSummaryQuery : IQuery<ProductsSummaryDto>, ICach
 
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(3);
 }
-
-public sealed record ProductsSummaryDto(
-    int TotalProducts,
-    int ActiveProducts,
-    decimal AveragePrice,
-    decimal TotalValue
-);

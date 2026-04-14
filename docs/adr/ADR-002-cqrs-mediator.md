@@ -1,4 +1,4 @@
-# ADR-002: CQRS with MediatR for Use Case Orchestration
+# ADR-002: CQRS with Custom Mediator for Use Case Orchestration
 
 ## Status
 Superseded by [ADR-017: Custom Mediator Implementation](ADR-017-custom-mediator-implementation.md)
