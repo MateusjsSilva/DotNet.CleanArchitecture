@@ -732,10 +732,8 @@ All significant architectural decisions are documented in **`docs/adr/`** using 
 | [ADR-011](docs/adr/ADR-011-audit-trail.md) | Audit Trail via `ICurrentUserService` | Accepted |
 | [ADR-012](docs/adr/ADR-012-api-versioning.md) | API Versioning via URL Segment | Accepted |
 | [ADR-013](docs/adr/ADR-013-testing-strategy.md) | Testing Strategy (3-Layer Pyramid) | Accepted |
-| [ADR-014](docs/adr/ADR-014-rate-limiting-strategy.md) | Rate Limiting (Granular Policies) | **Accepted** ✨ |
-| [ADR-015](docs/adr/ADR-015-production-ready-enhancements.md) | Production-Ready Enhancements (Polly, DLQ, Versioning, Idempotency, Seeding) | **Accepted** ✨ |
-| [ADR-016](docs/adr/ADR-016-pipeline-redundancy-elimination.md) | Pipeline Redundancy Elimination | **Accepted** 🚀 |
-| [ADR-017](docs/adr/ADR-017-custom-mediator-implementation.md) | Custom Mediator Implementation (MediatR Replacement) | **Accepted** 💰 |
-| [ADR-018](docs/adr/ADR-018-iapplicationdbcontext-readonly.md) | IApplicationDbContext as Read-Only Contract | **Accepted** 🔒 |
-
-> 💡 **New in this version (ADR-014 – ADR-018)**: Granular rate limiting policies, Polly resilience with exponential backoff, Dead Letter Queue for failed events, Event versioning framework, Idempotency keys, development data seeding, pipeline redundancy elimination, custom MediatR-free mediator with full pipeline support, and read-only `IApplicationDbContext` contract enforcement.
+| [ADR-014](docs/adr/ADR-014-rate-limiting-strategy.md) | Rate Limiting (Granular Policies) | Accepted |
+| [ADR-015](docs/adr/ADR-015-production-ready-enhancements.md) | Production-Ready Enhancements (Polly, DLQ, Versioning, Idempotency, Seeding) | Accepted |
+| [ADR-016](docs/adr/ADR-016-pipeline-redundancy-elimination.md) | Pipeline Redundancy Elimination | Accepted |
+| [ADR-017](docs/adr/ADR-017-custom-mediator-implementation.md) | Custom Mediator Implementation (MediatR Replacement) | Accepted |
+| [ADR-018](docs/adr/ADR-018-iapplicationdbcontext-readonly.md) | IApplicationDbContext as Read-Only Contract | Accepted |
