@@ -1,3 +1,4 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 using CleanArchitecture.Domain.Common;
 using CleanArchitecture.Infrastructure.Persistence;
@@ -179,5 +180,58 @@ public sealed class DependencyRulesTests
 
         result.IsSuccessful.Should().BeTrue(
             because: "All validators must live in the Application layer");
+    }
+
+    // ── CQRS purity rules ────────────────────────────────────────────────────
+
+    [Fact]
+    public void Commands_ShouldNotAlsoImplementIQuery()
+    {
+        var commandTypes = ApplicationAssembly.GetTypes()
+            .Where(t => t.GetInterfaces().Any(i =>
+                i == typeof(ICommand) ||
+                (i.IsGenericType && (
+                    i.GetGenericTypeDefinition() == typeof(ICommand<>)))))
+            .ToList();
+
+        var violations = commandTypes
+            .Where(t => t.GetInterfaces().Any(i =>
+                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>)))
+            .ToList();
+
+        violations.Should().BeEmpty(
+            because: "a type must not implement both ICommand and IQuery — CQRS requires strict separation. Violations: {0}",
+            string.Join(", ", violations.Select(v => v.Name)));
+    }
+
+    [Fact]
+    public void Handlers_ShouldNotDependOnOtherHandlers()
+    {
+        var handlerSuffixes = new[] { "CommandHandler", "QueryHandler" };
+
+        var handlerTypes = ApplicationAssembly.GetTypes()
+            .Where(t => handlerSuffixes.Any(suffix => t.Name.EndsWith(suffix)))
+            .ToHashSet();
+
+        var violations = new List<string>();
+
+        foreach (var handler in handlerTypes)
+        {
+            var ctors = handler.GetConstructors(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            foreach (var ctor in ctors)
+            {
+                foreach (var param in ctor.GetParameters())
+                {
+                    if (handlerTypes.Contains(param.ParameterType))
+                        violations.Add($"{handler.Name} depends on {param.ParameterType.Name}");
+                }
+            }
+        }
+
+        violations.Should().BeEmpty(
+            because: "handlers must not depend on other handlers — orchestration belongs in Application services or Sagas. Violations: {0}",
+            string.Join("; ", violations));
     }
 }

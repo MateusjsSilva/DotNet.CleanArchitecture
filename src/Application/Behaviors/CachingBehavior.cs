@@ -26,8 +26,22 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
             if (cached is not null)
             {
-                logger.LogDebug("Cache hit for {CacheKey}", cacheableRequest.CacheKey);
-                return JsonSerializer.Deserialize<TResponse>(cached)!;
+                try
+                {
+                    var deserialized = JsonSerializer.Deserialize<TResponse>(cached);
+                    if (deserialized is not null)
+                    {
+                        logger.LogDebug("Cache hit for {CacheKey}", cacheableRequest.CacheKey);
+                        return deserialized;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    logger.LogWarning(ex,
+                        "Cache entry for {CacheKey} could not be deserialized (stale schema?). Evicting and re-fetching.",
+                        cacheableRequest.CacheKey);
+                    await cache.RemoveAsync(cacheableRequest.CacheKey, cancellationToken);
+                }
             }
 
             logger.LogDebug("Cache miss for {CacheKey}", cacheableRequest.CacheKey);

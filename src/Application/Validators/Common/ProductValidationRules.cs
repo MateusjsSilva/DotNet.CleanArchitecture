@@ -21,18 +21,6 @@ public static class ProductValidationRules
     }
 
     /// <summary>
-    /// Validates optional product name (for PATCH): when provided, must be non-empty and max 200 characters.
-    /// </summary>
-    public static IRuleBuilderOptions<T, string?> ValidateOptionalProductName<T>(
-        this IRuleBuilder<T, string?> ruleBuilder)
-    {
-        return ruleBuilder
-            .NotEmpty().WithMessage("Product name cannot be empty or whitespace.")
-            .MaximumLength(200).WithMessage("Product name must not exceed 200 characters.")
-            .When(x => x != null);
-    }
-
-    /// <summary>
     /// Validates product price: must be greater than zero.
     /// </summary>
     public static IRuleBuilderOptions<T, decimal> ValidateProductPrice<T>(
@@ -54,10 +42,3 @@ public static class ProductValidationRules
     }
 }
 
-/// <summary>
-/// Interface to identify commands that have an Id property for uniqueness validation.
-/// </summary>
-public interface IHasId
-{
-    Guid Id { get; }
-}

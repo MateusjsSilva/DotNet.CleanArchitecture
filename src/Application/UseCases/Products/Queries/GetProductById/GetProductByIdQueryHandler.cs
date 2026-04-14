@@ -6,9 +6,9 @@ using CleanArchitecture.Domain.Interfaces;
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductById;
 
 internal sealed class GetProductByIdQueryHandler(IProductRepository productRepository)
-    : IQueryHandler<GetProductByIdQuery, ProductDto?>
+    : IQueryHandler<GetProductByIdQuery, ProductDto>
 {
-    public async Task<ProductDto?> Handle(
+    public async Task<ProductDto> Handle(
         GetProductByIdQuery request,
         CancellationToken cancellationToken)
     {

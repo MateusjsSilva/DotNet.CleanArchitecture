@@ -2,7 +2,6 @@ using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Application.UseCases.Products.Common;
-using CleanArchitecture.Application.Validators.Common;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.UpdateProduct;
 

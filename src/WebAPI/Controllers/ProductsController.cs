@@ -50,7 +50,7 @@ public sealed class ProductsController(IMediator mediator) : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var result = await mediator.SendAsync(new GetProductByIdQuery(id), cancellationToken);
-        return Ok(new ApiResponse<ProductDto>(result!));
+        return Ok(new ApiResponse<ProductDto>(result));
     }
 
     [HttpPost]

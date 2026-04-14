@@ -5,7 +5,7 @@ using CleanArchitecture.Application.DTOs;
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductById;
 
 public sealed record GetProductByIdQuery(Guid Id)
-    : IQuery<ProductDto?>, ICacheableQuery
+    : IQuery<ProductDto>, ICacheableQuery
 {
     public string CacheKey => CacheKeys.Product(Id);
 

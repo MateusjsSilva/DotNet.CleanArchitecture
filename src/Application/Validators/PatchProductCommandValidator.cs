@@ -12,11 +12,12 @@ public sealed class PatchProductCommandValidator : AbstractValidator<PatchProduc
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Product id is required.");
 
+        RuleFor(x => x.RowVersion)
+            .NotEmpty().WithMessage("Row version is required for concurrency control.");
+
         // All fields are optional — only validate those that are provided.
-        // Name validation: only apply when name is not null, and if provided must not be empty
-        RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("Product name cannot be empty or whitespace.")
-            .MaximumLength(200).WithMessage("Product name must not exceed 200 characters.")
+        RuleFor(x => x.Name!)
+            .ValidateProductName()
             .When(x => x.Name is not null);
 
         // Check uniqueness only if the caller is supplying a new name

@@ -58,4 +58,61 @@ public sealed class ProductTests
         product.Deactivate();
         product.IsActive.Should().BeFalse();
     }
+
+    [Fact]
+    public void Patch_WithAllNullFields_ShouldNotRaiseDomainEvent()
+    {
+        var product = Product.Create("Test", "Desc", 10m);
+        product.ClearDomainEvents();
+
+        product.Patch(null, null, null);
+
+        product.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Patch_WithAllNullFields_ShouldNotChangeAnyField()
+    {
+        var product = Product.Create("Original", "Desc", 10m);
+        product.ClearDomainEvents();
+
+        product.Patch(null, null, null);
+
+        product.Name.Should().Be("Original");
+        product.Description.Should().Be("Desc");
+        product.Price.Should().Be(10m);
+    }
+
+    [Fact]
+    public void Patch_WithNameOnly_ShouldRaisePatchedEvent()
+    {
+        var product = Product.Create("Original", null, 10m);
+        product.ClearDomainEvents();
+
+        product.Patch("New Name", null, null);
+
+        product.Name.Should().Be("New Name");
+        product.Price.Should().Be(10m);
+        product.DomainEvents.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Patch_WithEmptyName_ShouldThrowArgumentException(string emptyName)
+    {
+        var product = Product.Create("Valid", null, 10m);
+        var act = () => product.Patch(emptyName, null, null);
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Patch_WithInvalidPrice_ShouldThrowArgumentOutOfRangeException(decimal invalidPrice)
+    {
+        var product = Product.Create("Valid", null, 10m);
+        var act = () => product.Patch(null, null, invalidPrice);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }

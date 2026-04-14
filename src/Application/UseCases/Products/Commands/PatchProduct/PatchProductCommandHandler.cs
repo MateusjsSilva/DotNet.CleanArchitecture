@@ -18,8 +18,8 @@ internal sealed class PatchProductCommandHandler(
         var product = await productRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new NotFoundException("Product", request.Id);
 
-        // Check concurrency token if provided
-        if (request.RowVersion is not null && !product.RowVersion.SequenceEqual(request.RowVersion))
+        // Optimistic concurrency check — always required for PATCH
+        if (!product.RowVersion.SequenceEqual(request.RowVersion))
         {
             throw new ConcurrencyException("Product", request.Id);
         }

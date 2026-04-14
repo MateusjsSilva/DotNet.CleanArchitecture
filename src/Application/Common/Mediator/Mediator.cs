@@ -99,7 +99,11 @@ internal sealed class Mediator(IServiceProvider serviceProvider) : IMediator
         if (behaviors.Count == 0)
             return handlerDelegate();
 
-        // Build from innermost outward so the first-registered behavior executes first.
+        // Iterate in reverse so that behaviors[0] (first-registered) wraps all others,
+        // becoming the outermost layer. This produces the execution order that matches
+        // the DI registration order:
+        //   Registration: [LoggingBehavior, ValidationBehavior, CachingBehavior]
+        //   Execution:     Logging → Validation → Caching → Handler
         Func<Task<TResponse>> pipeline = handlerDelegate;
 
         for (var i = behaviors.Count - 1; i >= 0; i--)

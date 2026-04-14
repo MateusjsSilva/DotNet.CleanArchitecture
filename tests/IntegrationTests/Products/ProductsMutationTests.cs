@@ -1,3 +1,4 @@
+using CleanArchitecture.Application.Common;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.WebAPI.Models;
 using System.Net;
@@ -114,7 +115,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         // Arrange — create a product first
         var created = await CreateProductAsync("Original Name", 25.50m);
 
-        var patchPayload = new { Name = "Patched Name" };
+        var patchPayload = new { created.RowVersion, Name = "Patched Name" };
 
         // Act
         var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
@@ -135,7 +136,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         // Arrange — create a product first
         var created = await CreateProductAsync("Original Name", 25.50m);
 
-        var patchPayload = new { Price = 99.99m };
+        var patchPayload = new { created.RowVersion, Price = 99.99m };
 
         // Act
         var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
@@ -156,7 +157,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         // Arrange — create a product first
         var created = await CreateProductAsync("Original Name", 25.50m);
 
-        var patchPayload = new { Description = "New description" };
+        var patchPayload = new { created.RowVersion, Description = "New description" };
 
         // Act
         var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
@@ -178,6 +179,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         var created = await CreateProductAsync("Original Name", 25.50m);
 
         var patchPayload = new {
+            created.RowVersion,
             Name = "Patched Name",
             Price = 199.99m,
             Description = "Patched description"
@@ -199,7 +201,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
     [Fact]
     public async Task Patch_WithNonExistentId_ShouldReturn404()
     {
-        var patchPayload = new { Name = "Patched Name" };
+        var patchPayload = new { RowVersion = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 }, Name = "Patched Name" };
 
         var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{Guid.NewGuid()}",
             JsonContent.Create(patchPayload));
@@ -208,10 +210,25 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
     }
 
     [Fact]
+    public async Task Patch_WithMissingRowVersion_ShouldReturn400()
+    {
+        // RowVersion is a required non-nullable byte[] on PatchProductCommand.
+        // When omitted from the JSON body the model binder rejects it with 400 Bad Request
+        // before the FluentValidation pipeline runs.
+        var created = await CreateProductAsync("Original Name", 25.50m);
+        var patchPayload = new { Name = "Some Name" }; // no RowVersion
+
+        var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
+            JsonContent.Create(patchPayload));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Patch_WithInvalidPrice_ShouldReturn422()
     {
         var created = await CreateProductAsync("Original Name", 25.50m);
-        var patchPayload = new { Price = -10m };
+        var patchPayload = new { created.RowVersion, Price = -10m };
 
         var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
             JsonContent.Create(patchPayload));
@@ -223,7 +240,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
     public async Task Patch_WithEmptyName_ShouldReturn422()
     {
         var created = await CreateProductAsync("Original Name", 25.50m);
-        var patchPayload = new { Name = "" };
+        var patchPayload = new { created.RowVersion, Name = "" };
 
         var response = await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
             JsonContent.Create(patchPayload));
@@ -239,7 +256,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         await _anonymousClient.GetAsync($"/api/v1/products/{created.Id}"); // prime cache
 
         // Act — patch (invalidates cache)
-        var patchPayload = new { Name = "Patched Fresh Name" };
+        var patchPayload = new { created.RowVersion, Name = "Patched Fresh Name" };
         await _authenticatedClient.PatchAsync($"/api/v1/products/{created.Id}",
             JsonContent.Create(patchPayload));
 
@@ -248,6 +265,27 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         var body = await getResponse.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
         body!.Data.Name.Should().Be("Patched Fresh Name");
         body.Data.Price.Should().Be(10m); // unchanged
+    }
+
+    [Fact]
+    public async Task Delete_ShouldExcludeProductFromPagedList()
+    {
+        // Arrange — create two products, delete one
+        var kept = await CreateProductAsync("Kept Product", 10m);
+        var deleted = await CreateProductAsync("Deleted Product", 20m);
+
+        await _authenticatedClient.DeleteAsync($"/api/v1/products/{deleted.Id}");
+
+        // Act — fetch paginated list
+        var listResponse = await _anonymousClient.GetAsync("/api/v1/products");
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await listResponse.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ProductDto>>>();
+
+        // Assert — only the non-deleted product appears
+        body!.Data.Items.Should().NotContain(p => p.Id == deleted.Id,
+            because: "soft-deleted products must be excluded by the global query filter");
+        body.Data.Items.Should().Contain(p => p.Id == kept.Id);
     }
 
     // --- Helper ---

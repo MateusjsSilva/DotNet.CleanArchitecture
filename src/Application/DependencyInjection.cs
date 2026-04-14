@@ -30,73 +30,27 @@ public static class DependencyInjection
         return services;
     }
 
+    private static readonly Type[] HandlerInterfaces =
+    [
+        typeof(IQueryHandler<,>),
+        typeof(ICommandHandler<,>),
+        typeof(ICommandHandler<>),
+        typeof(IDomainEventHandler<>),
+    ];
+
     private static void RegisterHandlers(IServiceCollection services, Assembly assembly)
     {
-        // Register query handlers
-        var queryHandlers = assembly.GetTypes()
-            .Where(type => type.GetInterfaces()
-                .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQueryHandler<,>)))
-            .ToList();
-
-        foreach (var handler in queryHandlers)
+        // Single reflection pass over all types — registers every handler interface variant.
+        foreach (var type in assembly.GetTypes())
         {
-            var interfaces = handler.GetInterfaces()
-                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQueryHandler<,>));
-
-            foreach (var @interface in interfaces)
+            foreach (var @interface in type.GetInterfaces())
             {
-                services.AddScoped(@interface, handler);
-            }
-        }
+                if (!@interface.IsGenericType) continue;
 
-        // Register command handlers (with response)
-        var commandHandlersWithResponse = assembly.GetTypes()
-            .Where(type => type.GetInterfaces()
-                .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>)))
-            .ToList();
+                var definition = @interface.GetGenericTypeDefinition();
+                if (Array.IndexOf(HandlerInterfaces, definition) < 0) continue;
 
-        foreach (var handler in commandHandlersWithResponse)
-        {
-            var interfaces = handler.GetInterfaces()
-                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>));
-
-            foreach (var @interface in interfaces)
-            {
-                services.AddScoped(@interface, handler);
-            }
-        }
-
-        // Register command handlers (without response)
-        var commandHandlers = assembly.GetTypes()
-            .Where(type => type.GetInterfaces()
-                .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<>)))
-            .ToList();
-
-        foreach (var handler in commandHandlers)
-        {
-            var interfaces = handler.GetInterfaces()
-                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<>));
-
-            foreach (var @interface in interfaces)
-            {
-                services.AddScoped(@interface, handler);
-            }
-        }
-
-        // Register domain event handlers
-        var eventHandlers = assembly.GetTypes()
-            .Where(type => type.GetInterfaces()
-                .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>)))
-            .ToList();
-
-        foreach (var handler in eventHandlers)
-        {
-            var interfaces = handler.GetInterfaces()
-                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>));
-
-            foreach (var @interface in interfaces)
-            {
-                services.AddScoped(@interface, handler);
+                services.AddScoped(@interface, type);
             }
         }
     }

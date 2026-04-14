@@ -72,9 +72,9 @@ public sealed class ApplicationDbContext(
             }
             else
             {
-                if (entry.Entity is ISoftDeletable { IsDeleted: true } softDeletable
-                    && softDeletable.DeletedBy is null)
+                if (entry.Entity is { IsDeleted: true, DeletedAt: null })
                 {
+                    entry.Entity.DeletedAt = DateTime.UtcNow;
                     entry.Entity.DeletedBy = currentUserService.UserName;
                 }
 
@@ -94,10 +94,24 @@ public sealed class ApplicationDbContext(
 
         var outboxMessages = entities
             .SelectMany(e => e.DomainEvents)
-            .Select(domainEvent => new OutboxMessage
+            .Select(domainEvent =>
             {
-                Type = domainEvent.GetType().AssemblyQualifiedName!,
-                Content = JsonSerializer.Serialize(domainEvent, domainEvent.GetType())
+                var eventTypeName = domainEvent.GetType().Name;
+                var content = JsonSerializer.Serialize(domainEvent, domainEvent.GetType());
+                // Stable idempotency key: type + SHA-256 of the serialized payload.
+                // Two identical events (same type + same content) share a key and the
+                // processor will skip the duplicate instead of dispatching it twice.
+                var keySource = $"{eventTypeName}:{content}";
+                var keyBytes = System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(keySource));
+                var idempotencyKey = Convert.ToHexString(keyBytes);
+
+                return new OutboxMessage
+                {
+                    Type = domainEvent.GetType().AssemblyQualifiedName!,
+                    Content = content,
+                    IdempotencyKey = idempotencyKey
+                };
             })
             .ToList();
 

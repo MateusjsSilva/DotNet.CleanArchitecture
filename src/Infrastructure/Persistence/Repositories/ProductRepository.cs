@@ -61,8 +61,11 @@ internal sealed class ProductRepository(ApplicationDbContext context)
     public async Task<bool> ExistsByNameAsync(
         string name,
         Guid? excludeId = null,
-        CancellationToken cancellationToken = default) =>
-        await DbSet.AnyAsync(
-            p => p.Name == name && (excludeId == null || p.Id != excludeId),
+        CancellationToken cancellationToken = default)
+    {
+        var lower = name.ToLowerInvariant();
+        return await DbSet.AnyAsync(
+            p => p.Name.ToLower() == lower && (excludeId == null || p.Id != excludeId),
             cancellationToken);
+    }
 }

@@ -15,27 +15,26 @@ public sealed class ProductSoftDeleteTests
     }
 
     [Fact]
-    public void SoftDelete_ShouldSetDeletedAtTimestamp()
+    public void SoftDelete_ShouldLeaveDeletedAtNull_UntilPersisted()
     {
-        var before = DateTime.UtcNow;
+        // DeletedAt is stamped by ApplicationDbContext.SetAuditFields() on SaveChanges,
+        // not by SoftDelete() itself — keeping audit logic in one place.
         var product = Product.Create("Test", null, 10m);
 
         product.SoftDelete();
 
-        product.DeletedAt.Should().NotBeNull();
-        product.DeletedAt.Should().BeOnOrAfter(before);
+        product.DeletedAt.Should().BeNull();
     }
 
     [Fact]
-    public void SoftDelete_WhenCalledTwice_ShouldNotOverrideDeletedAt()
+    public void SoftDelete_WhenCalledTwice_ShouldNotChangeIsDeleted()
     {
         var product = Product.Create("Test", null, 10m);
 
         product.SoftDelete();
-        var firstDeletedAt = product.DeletedAt;
+        product.SoftDelete(); // idempotent — should not throw or change state
 
-        product.SoftDelete();
-
-        product.DeletedAt.Should().Be(firstDeletedAt);
+        product.IsDeleted.Should().BeTrue();
+        product.DeletedAt.Should().BeNull(); // still null until SaveChanges
     }
 }
