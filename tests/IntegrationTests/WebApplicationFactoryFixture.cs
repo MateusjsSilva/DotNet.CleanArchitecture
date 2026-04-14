@@ -3,9 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Respawn;
 using Testcontainers.MsSql;
 
@@ -116,18 +114,14 @@ public sealed class WebApplicationFactoryFixture
     {
         builder.UseEnvironment("Test");
 
+        // Inject the Testcontainers connection string into configuration BEFORE the app's
+        // AddInfrastructure runs. This way AddInfrastructure naturally picks the SqlServer
+        // branch instead of InMemory — no service descriptor surgery needed.
+        if (_useContainer && _connectionString is not null)
+            builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
+
         builder.ConfigureServices(services =>
         {
-            if (_useContainer && _connectionString is not null)
-            {
-                // Point EF Core at the Testcontainers SQL Server instance.
-                // Remove existing DbContext registration and re-register with the container connection string.
-                // _connectionString is set during InitializeAsync before any client is created.
-                services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-                services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseSqlServer(_connectionString));
-            }
-
             // Replace JWT Bearer with a test scheme that auto-authenticates every request.
             // This call overrides the default scheme set by AddInfrastructure (JWT Bearer).
             services.AddAuthentication(options =>
