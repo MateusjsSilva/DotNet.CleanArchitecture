@@ -18,10 +18,11 @@ public static class DependencyInjection
         // Register all handlers
         RegisterHandlers(services, assembly);
 
-        // TODO: Re-add pipeline behaviors after fixing implementation
-        // services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-        // services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-        // services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+        // Pipeline behaviors — executed in registration order (first registered = outermost wrapper).
+        // Logging → Validation → Caching → Handler
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
 
         // Register validators
         services.AddValidatorsFromAssembly(assembly);

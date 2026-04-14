@@ -1,13 +1,15 @@
+using CleanArchitecture.Application.Common.Mediator;
+
 namespace CleanArchitecture.Application.Common;
 
 /// <summary>
 /// Marker interface for queries whose responses should be cached.
-/// Implement this on any IRequest&lt;TResponse&gt; to opt-in to the CachingBehavior pipeline.
+/// Implement this on any <see cref="IQuery{TResponse}"/> to opt-in to the CachingBehavior pipeline.
 ///
 /// Example with absolute expiration (10 minutes fixed):
 /// <code>
 ///     public sealed record GetProductByIdQuery(Guid Id)
-///         : IRequest&lt;ProductDto?&gt;, ICacheableQuery
+///         : IQuery&lt;ProductDto?&gt;, ICacheableQuery
 ///     {
 ///         public string CacheKey => CacheKeys.Product(Id);
 ///         public TimeSpan? AbsoluteExpiration => TimeSpan.FromMinutes(10);
@@ -18,7 +20,7 @@ namespace CleanArchitecture.Application.Common;
 /// Example with sliding expiration (refreshes on each access, 5 minute timeout):
 /// <code>
 ///     public sealed record GetAllProductsQuery(...)
-///         : IRequest&lt;PagedResult&lt;ProductDto&gt;&gt;, ICacheableQuery
+///         : IQuery&lt;PagedResult&lt;ProductDto&gt;&gt;, ICacheableQuery
 ///     {
 ///         public string CacheKey => $"{CacheKeys.ProductCollections}:page={page}:pageSize={pageSize}";
 ///         public TimeSpan? AbsoluteExpiration => null;

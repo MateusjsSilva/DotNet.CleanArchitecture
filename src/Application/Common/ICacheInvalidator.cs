@@ -1,9 +1,11 @@
+using CleanArchitecture.Application.Common.Mediator;
+
 namespace CleanArchitecture.Application.Common;
 
 /// <summary>
 /// Marker interface for commands that should evict cache entries after the handler
-/// executes. Implement alongside IRequest to opt-in to automatic cache invalidation
-/// via the CachingBehavior pipeline.
+/// executes. Implement alongside <see cref="ICommand"/> or <see cref="ICommand{TResponse}"/>
+/// to opt-in to automatic cache invalidation via the CachingBehavior pipeline.
 /// </summary>
 public interface ICacheInvalidator
 {
