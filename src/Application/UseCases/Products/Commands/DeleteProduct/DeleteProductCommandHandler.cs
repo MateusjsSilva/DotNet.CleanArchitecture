@@ -1,13 +1,13 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Domain.Exceptions;
 using CleanArchitecture.Domain.Interfaces;
-using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.DeleteProduct;
 
 internal sealed class DeleteProductCommandHandler(
     IProductRepository productRepository,
     IUnitOfWork unitOfWork)
-    : IRequestHandler<DeleteProductCommand>
+    : ICommandHandler<DeleteProductCommand>
 {
     public async Task Handle(DeleteProductCommand request, CancellationToken cancellationToken)
     {

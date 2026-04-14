@@ -1,6 +1,7 @@
 using CleanArchitecture.Application.Common;
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
-using MediatR;
+using CleanArchitecture.Application.UseCases.Products.Common;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.UpdateProduct;
 
@@ -8,11 +9,10 @@ public sealed record UpdateProductCommand(
     Guid Id,
     string Name,
     string? Description,
-    decimal Price
-) : IRequest<ProductDto>, ICacheInvalidator
+    decimal Price,
+    byte[] RowVersion
+) : ICommand<ProductDto>, ICacheInvalidator, IHasId
 {
-    public IEnumerable<string> CacheKeysToInvalidate =>
-    [
-        $"product:{Id}"
-    ];
+    public IEnumerable<string> CacheKeysToInvalidate => ProductCacheInvalidation.GetIndividualProductKeys(Id);
+    public IEnumerable<string> CacheKeyPrefixesToInvalidate => ProductCacheInvalidation.GetProductListPrefixes();
 }

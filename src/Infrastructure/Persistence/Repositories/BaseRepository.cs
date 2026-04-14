@@ -17,6 +17,13 @@ internal abstract class BaseRepository<T>(ApplicationDbContext context)
     public async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default) =>
         await DbSet.AsNoTracking().ToListAsync(cancellationToken);
 
+    /// <summary>
+    /// Returns entities matching <paramref name="predicate"/>.
+    /// Soft-delete filtering is enforced automatically via the EF Core global query filter
+    /// configured in <c>ApplicationDbContext.ApplySoftDeleteQueryFilters</c>.
+    /// Any entity type that implements <see cref="ISoftDeletable"/> MUST have that filter
+    /// registered there, or deleted records will leak through this method.
+    /// </summary>
     public async Task<IReadOnlyList<T>> FindAsync(
         Expression<Func<T, bool>> predicate,
         CancellationToken cancellationToken = default) =>

@@ -2,6 +2,7 @@ using CleanArchitecture.Application;
 using CleanArchitecture.Infrastructure;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Modules.AI;
+using CleanArchitecture.WebAPI.Attributes;
 using CleanArchitecture.WebAPI.Extensions;
 using CleanArchitecture.WebAPI.Middlewares;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ try
     Log.Information("Starting CleanArchitecture API...");
 
     var builder = WebApplication.CreateBuilder(args);
+    var isNotTestEnvironment = builder.Environment.EnvironmentName != "Test";
 
     builder.Host.UseSerilog((context, services, configuration) =>
         configuration
@@ -37,7 +39,13 @@ try
     builder.Services.AddObservability(builder.Configuration);
     builder.Services.AddAppHealthChecks(builder.Configuration);
     builder.Services.AddCorsPolicy(builder.Configuration);
-    builder.Services.AddApiRateLimiting();
+    builder.Services.AddSecurityHeaders();
+
+    // Only add rate limiting if not in test environment
+    if (isNotTestEnvironment)
+    {
+        builder.Services.AddApiRateLimiting();
+    }
 
     builder.Services.ConfigureHttpClientDefaults(http =>
         http.AddStandardResilienceHandler());
@@ -64,6 +72,7 @@ try
     var app = builder.Build();
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.UseSecurityHeaders(app.Environment);
 
     if (app.Environment.IsDevelopment())
     {
@@ -78,12 +87,24 @@ try
         ? CorsExtensions.AllowAllPolicy
         : CorsExtensions.AllowSpecificPolicy);
 
-    app.UseRateLimiter();
+    // Only use rate limiter if not in test environment
+    if (isNotTestEnvironment)
+    {
+        app.UseRateLimiter();
+    }
 
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapControllers().RequireRateLimiting(RateLimitingExtensions.FixedPolicy);
+    // Map controllers and apply default rate limiting only if not in test environment
+    if (isNotTestEnvironment)
+    {
+        app.MapControllers().RequireRateLimiting(RateLimitingExtensions.DefaultPolicy);
+    }
+    else
+    {
+        app.MapControllers();
+    }
     app.MapAppHealthChecks();
     app.UsePrometheusMetrics();
 
@@ -95,8 +116,8 @@ try
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync();
 
-        // Uncomment to seed sample data on first run:
-        // await ApplicationDbContextSeeder.SeedAsync(db);
+        // Seed sample data on first run (development only)
+        await ApplicationDbContextSeeder.SeedAsync(db);
     }
 
     await app.RunAsync();

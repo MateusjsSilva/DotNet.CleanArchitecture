@@ -1,5 +1,5 @@
 using CleanArchitecture.Application.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -16,7 +16,7 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
     public async Task<TResponse> Handle(
         TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+        Func<Task<TResponse>> next,
         CancellationToken cancellationToken)
     {
         // --- Read from cache (queries only) ---
@@ -26,20 +26,43 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
 
             if (cached is not null)
             {
-                logger.LogDebug("Cache hit for {CacheKey}", cacheableRequest.CacheKey);
-                return JsonSerializer.Deserialize<TResponse>(cached)!;
+                try
+                {
+                    var deserialized = JsonSerializer.Deserialize<TResponse>(cached);
+                    if (deserialized is not null)
+                    {
+                        logger.LogDebug("Cache hit for {CacheKey}", cacheableRequest.CacheKey);
+                        return deserialized;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    logger.LogWarning(ex,
+                        "Cache entry for {CacheKey} could not be deserialized (stale schema?). Evicting and re-fetching.",
+                        cacheableRequest.CacheKey);
+                    await cache.RemoveAsync(cacheableRequest.CacheKey, cancellationToken);
+                }
             }
 
             logger.LogDebug("Cache miss for {CacheKey}", cacheableRequest.CacheKey);
 
             var response = await next();
 
-            var expiration = cacheableRequest.AbsoluteExpiration ?? DefaultExpiration;
             await cache.SetStringAsync(
                 cacheableRequest.CacheKey,
                 JsonSerializer.Serialize(response),
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expiration },
+                BuildCacheOptions(cacheableRequest),
                 cancellationToken);
+
+            // Register this key in the prefix registry so prefix-based invalidation
+            // can find and remove it later (e.g. when a product mutation occurs).
+            if (cacheableRequest.CacheKeyPrefix is not null)
+                await RegisterKeyInPrefixRegistryAsync(cacheableRequest.CacheKeyPrefix, cacheableRequest.CacheKey, cancellationToken);
+
+            logger.LogDebug(
+                "Cached response for {CacheKey} with expiration {ExpirationMs}ms",
+                cacheableRequest.CacheKey,
+                GetExpirationMs(cacheableRequest));
 
             return response;
         }
@@ -55,8 +78,95 @@ internal sealed class CachingBehavior<TRequest, TResponse>(
                 await cache.RemoveAsync(key, cancellationToken);
                 logger.LogDebug("Cache evicted for {CacheKey}", key);
             }
+
+            foreach (var prefix in invalidator.CacheKeyPrefixesToInvalidate)
+            {
+                await InvalidatePrefixAsync(prefix, cancellationToken);
+            }
         }
 
         return result;
+    }
+
+    // ── Prefix registry helpers ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Adds <paramref name="key"/> to a registry set stored under the distributed cache
+    /// key <c>registry:{prefix}</c>. The <paramref name="prefix"/> must match the value
+    /// used in <see cref="ICacheInvalidator.CacheKeyPrefixesToInvalidate"/> so that
+    /// prefix-based invalidation can locate and remove all related keys.
+    /// </summary>
+    private async Task RegisterKeyInPrefixRegistryAsync(string prefix, string key, CancellationToken ct)
+    {
+        var registryKey = CacheKeys.Registry(prefix);
+
+        var existing = await cache.GetStringAsync(registryKey, ct);
+        var keys = existing is null
+            ? new HashSet<string>()
+            : JsonSerializer.Deserialize<HashSet<string>>(existing)!;
+
+        if (!keys.Add(key))
+            return; // already registered — nothing to update
+
+        // Keep the registry alive longer than the entries themselves
+        await cache.SetStringAsync(
+            registryKey,
+            JsonSerializer.Serialize(keys),
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) },
+            ct);
+    }
+
+    /// <summary>
+    /// Removes every cache key registered under the given <paramref name="prefix"/>
+    /// and then removes the registry entry itself.
+    /// </summary>
+    private async Task InvalidatePrefixAsync(string prefix, CancellationToken ct)
+    {
+        var registryKey = CacheKeys.Registry(prefix);
+
+        var existing = await cache.GetStringAsync(registryKey, ct);
+        if (existing is null)
+        {
+            logger.LogDebug("No cache registry found for prefix '{Prefix}' — nothing to invalidate.", prefix);
+            return;
+        }
+
+        var keys = JsonSerializer.Deserialize<HashSet<string>>(existing)!;
+
+        foreach (var key in keys)
+        {
+            await cache.RemoveAsync(key, ct);
+            logger.LogDebug("Cache evicted '{CacheKey}' via prefix '{Prefix}'", key, prefix);
+        }
+
+        await cache.RemoveAsync(registryKey, ct);
+        logger.LogDebug("Cache prefix registry '{RegistryKey}' cleared ({Count} entries).", registryKey, keys.Count);
+    }
+
+    // ── Cache option helpers ──────────────────────────────────────────────────
+
+    private static DistributedCacheEntryOptions BuildCacheOptions(ICacheableQuery cacheableRequest)
+    {
+        var options = new DistributedCacheEntryOptions();
+
+        if (cacheableRequest.AbsoluteExpiration.HasValue)
+            options.AbsoluteExpirationRelativeToNow = cacheableRequest.AbsoluteExpiration.Value;
+        else if (cacheableRequest.SlidingExpiration.HasValue)
+            options.SlidingExpiration = cacheableRequest.SlidingExpiration.Value;
+        else
+            options.AbsoluteExpirationRelativeToNow = DefaultExpiration;
+
+        return options;
+    }
+
+    private static double GetExpirationMs(ICacheableQuery cacheableRequest)
+    {
+        if (cacheableRequest.AbsoluteExpiration.HasValue)
+            return cacheableRequest.AbsoluteExpiration.Value.TotalMilliseconds;
+
+        if (cacheableRequest.SlidingExpiration.HasValue)
+            return cacheableRequest.SlidingExpiration.Value.TotalMilliseconds;
+
+        return DefaultExpiration.TotalMilliseconds;
     }
 }

@@ -1,0 +1,42 @@
+using CleanArchitecture.Application.Common.Mediator;
+using CleanArchitecture.Application.DTOs;
+using CleanArchitecture.Domain.Exceptions;
+using CleanArchitecture.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace CleanArchitecture.Application.UseCases.Products.Commands.PatchProduct;
+
+internal sealed class PatchProductCommandHandler(
+    IProductRepository productRepository,
+    IUnitOfWork unitOfWork)
+    : ICommandHandler<PatchProductCommand, ProductDto>
+{
+    public async Task<ProductDto> Handle(
+        PatchProductCommand request,
+        CancellationToken cancellationToken)
+    {
+        var product = await productRepository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new NotFoundException("Product", request.Id);
+
+        // Optimistic concurrency check — always required for PATCH
+        if (!product.RowVersion.SequenceEqual(request.RowVersion))
+        {
+            throw new ConcurrencyException("Product", request.Id);
+        }
+
+        product.Patch(request.Name, request.Description, request.Price);
+
+        productRepository.Update(product);
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConcurrencyException("Product", request.Id);
+        }
+
+        return product.ToDto();
+    }
+}

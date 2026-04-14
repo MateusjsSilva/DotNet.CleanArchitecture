@@ -1,5 +1,5 @@
 using CleanArchitecture.Application.Telemetry;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
@@ -12,7 +12,7 @@ internal sealed class LoggingBehavior<TRequest, TResponse>(
 {
     public async Task<TResponse> Handle(
         TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+        Func<Task<TResponse>> next,
         CancellationToken cancellationToken)
     {
         var requestName = typeof(TRequest).Name;

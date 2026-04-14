@@ -1,14 +1,14 @@
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Exceptions;
 using CleanArchitecture.Domain.Interfaces;
-using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetProductById;
 
 internal sealed class GetProductByIdQueryHandler(IProductRepository productRepository)
-    : IRequestHandler<GetProductByIdQuery, ProductDto?>
+    : IQueryHandler<GetProductByIdQuery, ProductDto>
 {
-    public async Task<ProductDto?> Handle(
+    public async Task<ProductDto> Handle(
         GetProductByIdQuery request,
         CancellationToken cancellationToken)
     {

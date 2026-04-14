@@ -87,7 +87,8 @@ src/
 │
 ├── Application/
 │   ├── Behaviors/        # LoggingBehavior, ValidationBehavior, CachingBehavior
-│   ├── Common/           # PagedResult<T>, ICacheableQuery
+│   ├── Common/           # PagedResult<T>, ICacheableQuery, ICacheInvalidator
+│   └── Mediator/     # IMediator, IQuery, ICommand, IPipelineBehavior, handlers
 │   ├── DTOs/             # ProductDto, AuthTokensDto
 │   ├── Interfaces/       # IApplicationDbContext, IAuthService, ICurrentUserService, ISqlConnectionFactory
 │   ├── Telemetry/        # ApplicationActivitySource (BCL only, no OTel package dep)
@@ -134,7 +135,7 @@ docker/
 | Concern | Library | Version |
 |---|---|---|
 | Framework | .NET | 10 |
-| CQRS / Mediator | MediatR | 12 |
+| CQRS / Mediator | Custom (no external dependency) | — |
 | Validation | FluentValidation | 11 |
 | Object Mapping | Manual extension methods | — |
 | ORM (write side) | Entity Framework Core | 10 |
@@ -167,7 +168,7 @@ sequenceDiagram
     participant RateLimit as Rate Limiter
     participant Auth as Auth / JWT
     participant Controller
-    participant MediatR
+    participant Mediator as Custom Mediator
     participant Logging as LoggingBehavior
     participant Validation as ValidationBehavior
     participant Caching as CachingBehavior
@@ -181,8 +182,8 @@ sequenceDiagram
     RateLimit->>Auth: pass
     Auth-->>Client: 401 if token invalid
     Auth->>Controller: pass
-    Controller->>MediatR: sender.Send(command/query)
-    MediatR->>Logging: wrap in activity (OTel)
+    Controller->>Mediator: mediator.SendAsync(command/query)
+    Mediator->>Logging: wrap in activity (OTel)
     Logging->>Validation: validate request
     Validation-->>Controller: 422 if invalid (via exception)
     Validation->>Caching: check cache (queries only)
@@ -296,7 +297,7 @@ flowchart LR
 
 ## Outbox Pattern
 
-Domain events are not dispatched synchronously. Instead they are persisted to an `OutboxMessages` table **in the same transaction** as the entity change. A background service polls and dispatches them via MediatR.
+Domain events are not dispatched synchronously. Instead they are persisted to an `OutboxMessages` table **in the same transaction** as the entity change. A background service polls and dispatches them via the custom mediator.
 
 ```mermaid
 sequenceDiagram
@@ -304,7 +305,7 @@ sequenceDiagram
     participant DbCtx as ApplicationDbContext<br/>SaveChangesAsync
     participant DB as Database
     participant Processor as OutboxProcessorService<br/>(BackgroundService)
-    participant MediatR
+    participant Mediator as Custom Mediator
     participant EventHandler as ProductCreatedEventHandler
 
     Handler->>DbCtx: SaveChangesAsync()
@@ -315,9 +316,9 @@ sequenceDiagram
     loop Every 10 seconds
         Processor->>DB: SELECT TOP 20 WHERE ProcessedAt IS NULL
         DB-->>Processor: pending messages
-        Processor->>MediatR: Publish(IDomainEvent)
-        MediatR->>EventHandler: Handle(ProductCreatedEvent)
-        EventHandler-->>MediatR: done
+        Processor->>Mediator: PublishAsync(IDomainEvent)
+        Mediator->>EventHandler: Handle(ProductCreatedEvent)
+        EventHandler-->>Mediator: done
         Processor->>DB: UPDATE ProcessedAt = UtcNow
     end
 ```
@@ -358,27 +359,37 @@ Refresh token rotation: every `/auth/refresh` call revokes the old token and iss
 
 ## Pipeline Behaviors
 
-MediatR behaviors are executed in the following order for every request:
+Custom pipeline behaviors are executed in the following order for every request:
 
 ```mermaid
 flowchart LR
     R[Request] --> L[LoggingBehavior\nOTel Activity + logs]
     L --> V[ValidationBehavior\nFluentValidation]
-    V --> C[CachingBehavior\nIMemoryCache]
+    V --> C[CachingBehavior\nIDistributedCache]
     C --> H[Handler]
-    H --> C2[CachingBehavior\nstore result]
+    H --> C2[CachingBehavior\nstore result / evict keys]
     C2 --> L2[LoggingBehavior\nmark activity OK/Error]
     L2 --> Res[Response]
 ```
 
-**Caching opt-in:** implement `ICacheableQuery` on any `IRequest<TResponse>`:
+**Caching opt-in:** implement `ICacheableQuery` on any `IQuery<TResponse>`:
 
 ```csharp
 public sealed record GetProductByIdQuery(Guid Id)
-    : IRequest<ProductDto?>, ICacheableQuery
+    : IQuery<ProductDto?>, ICacheableQuery
 {
     public string CacheKey => $"product:{Id}";
     public TimeSpan? AbsoluteExpiration => TimeSpan.FromMinutes(10);
+}
+```
+
+**Cache invalidation opt-in:** implement `ICacheInvalidator` on any `ICommand` or `ICommand<TResponse>`:
+
+```csharp
+public sealed record UpdateProductCommand(Guid Id, ...) : ICommand<ProductDto>, ICacheInvalidator
+{
+    public IEnumerable<string> CacheKeysToInvalidate => [$"product:{Id}"];
+    public IEnumerable<string> CacheKeyPrefixesToInvalidate => ["products"];
 }
 ```
 
@@ -477,7 +488,7 @@ dotnet run --project src/WebAPI
 ### Running tests
 
 ```bash
-# All tests (27 tests across 3 suites)
+# All tests (48 tests across 3 suites)
 dotnet test
 
 # Specific suite
@@ -669,7 +680,46 @@ Additional rules:
 | **Refresh token rotation** | Every `/auth/refresh` revokes the old token and issues a new pair; reuse is detectable |
 | **`ICurrentUserService`** | Injected into `ApplicationDbContext`; automatically populates `CreatedBy` / `UpdatedBy` / `DeletedBy` |
 | **OTel in Application (BCL only)** | `ApplicationActivitySource` uses only `System.Diagnostics.ActivitySource` (BCL); the Application layer has no NuGet OTel package dependency |
-| **`ICacheableQuery`** | Opt-in caching via marker interface on query records; `CachingBehavior` in the MediatR pipeline handles all cache logic in one place |
+| **`ICacheableQuery`** | Opt-in caching via marker interface on query records; `CachingBehavior` in the custom pipeline handles all cache logic in one place |
+| **`ICacheInvalidator`** | Opt-in cache eviction via marker interface on command records; supports exact keys and prefix-based bulk invalidation |
+| **`IApplicationDbContext` (read-only)** | Exposes only `DbSet<T>` — no `SaveChangesAsync`. Commands persist exclusively via `IUnitOfWork`, preventing accidental double-save |
+| **Custom Mediator (no MediatR)** | Zero-dependency mediator with full pipeline support; open-generic `IPipelineBehavior<,>` resolved per concrete request type with reflection cache |
 | **`IDesignTimeDbContextFactory`** | No startup project needed for `dotnet ef` CLI commands |
 | **Problem Details (RFC 9457)** | All error responses include `traceId` and `instance` for distributed tracing correlation |
 | **API Versioning** | All routes versioned via URL segment (`/api/v1/...`); adding `[ApiVersion(2)]` to a controller is all that's needed to introduce v2 |
+| **Rate Limiting (Granular)** | ASP.NET Core built-in `RateLimiter` with 4 policies (auth: 5/min, products: 100/min, ai: 30/min, default: 50/min); fixed window + queue for fairness; Problem Details for 429 |
+| **Polly Resilience** | Exponential backoff retry (2s, 4s, 8s) for OutboxProcessor; handles transient failures gracefully |
+| **Dead Letter Queue** | Failed events moved to `DeadLetterMessages` after 3 retries; enables investigation and manual reprocessing |
+| **Event Versioning** | Schema evolution via `EventVersion` field + `EventMigrationHandler`; backward-compatible event processing |
+| **Idempotency Keys** | `OutboxMessage.IdempotencyKey` prevents duplicate processing; essential for message retries |
+| **Cache with Sliding Expiration** | `ICacheableQuery` supports both absolute and sliding expiration; `CachingBehavior` applies intelligently per-query |
+| **Development Seeding** | `ApplicationDbContextSeeder` auto-populates realistic data in Development environment |
+
+---
+
+## Architecture Decision Records (ADRs)
+
+All significant architectural decisions are documented in **`docs/adr/`** using the ADR format:
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [ADR-001](docs/adr/ADR-001-clean-architecture.md) | Clean Architecture Layers | Accepted |
+| [ADR-002](docs/adr/ADR-002-cqrs-mediatr.md) | CQRS with MediatR | Accepted |
+| [ADR-003](docs/adr/ADR-003-guid-v7.md) | GUID v7 IDs | Accepted |
+| [ADR-004](docs/adr/ADR-004-manual-mapping.md) | Manual DTO Mapping (no AutoMapper) | Accepted |
+| [ADR-005](docs/adr/ADR-005-domain-events-outbox.md) | Domain Events & Outbox Pattern | Accepted |
+| [ADR-006](docs/adr/ADR-006-soft-delete.md) | Soft Delete Pattern | Accepted |
+| [ADR-007](docs/adr/ADR-007-jwt-refresh-tokens.md) | JWT with Refresh Token Rotation | Accepted |
+| [ADR-008](docs/adr/ADR-008-observability.md) | OpenTelemetry Observability (Jaeger, Prometheus) | Accepted |
+| [ADR-009](docs/adr/ADR-009-caching.md) | Caching Strategy (Absolute & Sliding Expiration) | Accepted |
+| [ADR-010](docs/adr/ADR-010-problem-details.md) | Problem Details (RFC 9457) Error Format | Accepted |
+| [ADR-011](docs/adr/ADR-011-audit-trail.md) | Audit Trail via `ICurrentUserService` | Accepted |
+| [ADR-012](docs/adr/ADR-012-api-versioning.md) | API Versioning via URL Segment | Accepted |
+| [ADR-013](docs/adr/ADR-013-testing-strategy.md) | Testing Strategy (3-Layer Pyramid) | Accepted |
+| [ADR-014](docs/adr/ADR-014-rate-limiting-strategy.md) | Rate Limiting (Granular Policies) | **Accepted** ✨ |
+| [ADR-015](docs/adr/ADR-015-production-ready-enhancements.md) | Production-Ready Enhancements (Polly, DLQ, Versioning, Idempotency, Seeding) | **Accepted** ✨ |
+| [ADR-016](docs/adr/ADR-016-pipeline-redundancy-elimination.md) | Pipeline Redundancy Elimination | **Accepted** 🚀 |
+| [ADR-017](docs/adr/ADR-017-custom-mediator-implementation.md) | Custom Mediator Implementation (MediatR Replacement) | **Accepted** 💰 |
+| [ADR-018](docs/adr/ADR-018-iapplicationdbcontext-readonly.md) | IApplicationDbContext as Read-Only Contract | **Accepted** 🔒 |
+
+> 💡 **New in this version (ADR-014 – ADR-018)**: Granular rate limiting policies, Polly resilience with exponential backoff, Dead Letter Queue for failed events, Event versioning framework, Idempotency keys, development data seeding, pipeline redundancy elimination, custom MediatR-free mediator with full pipeline support, and read-only `IApplicationDbContext` contract enforcement.

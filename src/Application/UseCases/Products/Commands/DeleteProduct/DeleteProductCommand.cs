@@ -1,12 +1,11 @@
 using CleanArchitecture.Application.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
+using CleanArchitecture.Application.UseCases.Products.Common;
 
 namespace CleanArchitecture.Application.UseCases.Products.Commands.DeleteProduct;
 
-public sealed record DeleteProductCommand(Guid Id) : IRequest, ICacheInvalidator
+public sealed record DeleteProductCommand(Guid Id) : ICommand, ICacheInvalidator
 {
-    public IEnumerable<string> CacheKeysToInvalidate =>
-    [
-        $"product:{Id}"
-    ];
+    public IEnumerable<string> CacheKeysToInvalidate => ProductCacheInvalidation.GetIndividualProductKeys(Id);
+    public IEnumerable<string> CacheKeyPrefixesToInvalidate => ProductCacheInvalidation.GetProductListPrefixes();
 }

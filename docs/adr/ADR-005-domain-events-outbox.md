@@ -17,8 +17,8 @@ Use the **Outbox Pattern**.
 1. When `Product.Create()` is called, it raises `ProductCreatedEvent` via `RaiseDomainEvent()` (in-memory, no I/O).
 2. In `ApplicationDbContext.SaveChangesAsync()`, before calling `base.SaveChangesAsync()`, domain events are serialized to `OutboxMessage` rows and added to the EF change tracker.
 3. `base.SaveChangesAsync()` persists both the entity change **and** the outbox messages **in one transaction**.
-4. `OutboxProcessorService` (a `BackgroundService`) polls the `OutboxMessages` table every 10 seconds, deserializes each event, and publishes it via `IPublisher` (MediatR).
-5. `ProductCreatedEventHandler` (an `INotificationHandler<ProductCreatedEvent>`) receives the event and performs side effects.
+4. `OutboxProcessorService` (a `BackgroundService`) polls the `OutboxMessages` table every 10 seconds, deserializes each event, and publishes it via `IMediator.PublishAsync` (custom mediator — see ADR-017).
+5. `ProductCreatedEventHandler` (an `IDomainEventHandler<ProductCreatedEvent>`) receives the event and performs side effects (metrics, logging).
 
 ```
 Entity change + OutboxMessage → same DB transaction → guaranteed delivery
@@ -31,13 +31,16 @@ Entity change + OutboxMessage → same DB transaction → guaranteed delivery
 | `Id` | `Guid` (v7) | Primary key |
 | `Type` | `nvarchar(500)` | Assembly-qualified CLR type name |
 | `Content` | `nvarchar(max)` | JSON-serialized event payload |
+| `EventVersion` | `int` (default 1) | Schema version for migration support |
 | `OccurredAt` | `datetime2` | When the event was raised |
 | `ProcessedAt` | `datetime2?` | Null = pending; set when dispatched |
-| `Error` | `nvarchar(max)?` | Set if dispatch fails |
+| `RetryCount` | `int` | Number of failed dispatch attempts |
+| `Error` | `nvarchar(max)?` | Last error message if dispatch failed |
+| `IdempotencyKey` | `nvarchar(max)?` | SHA-256(type+content) — prevents duplicate dispatch on retry |
 
 ## Consequences
 - **Positive**: Event delivery is guaranteed even if the process restarts mid-dispatch.
 - **Positive**: Entity change and event publication are atomic (same transaction).
 - **Positive**: Domain layer stays free of infrastructure concerns — entities just call `RaiseDomainEvent()`.
-- **Negative**: Events are delivered with eventual consistency (up to 10 s delay). For same-request consistency, synchronous handlers can still be used via `INotificationHandler`.
+- **Negative**: Events are delivered with eventual consistency (up to 10 s delay). For same-request consistency, synchronous handlers can be invoked directly via `IMediator.PublishAsync`.
 - **Negative**: Adds operational complexity — the `OutboxMessages` table must be included in database maintenance and monitoring.

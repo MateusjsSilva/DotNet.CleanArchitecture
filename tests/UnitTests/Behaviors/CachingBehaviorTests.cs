@@ -1,6 +1,6 @@
 using CleanArchitecture.Application.Behaviors;
 using CleanArchitecture.Application.Common;
-using MediatR;
+using CleanArchitecture.Application.Common.Mediator;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -80,12 +80,12 @@ public sealed class CachingBehaviorTests
     {
         // Arrange
         var command = new InvalidatingCommand("key-a", "key-b");
-        var behavior = new CachingBehavior<InvalidatingCommand, Unit>(
+        var behavior = new CachingBehavior<InvalidatingCommand, bool>(
             _cache,
-            NullLogger<CachingBehavior<InvalidatingCommand, Unit>>.Instance);
+            NullLogger<CachingBehavior<InvalidatingCommand, bool>>.Instance);
 
         // Act
-        await behavior.Handle(command, () => Task.FromResult(Unit.Value), CancellationToken.None);
+        await behavior.Handle(command, () => Task.FromResult(true), CancellationToken.None);
 
         // Assert
         await _cache.Received(1).RemoveAsync("key-a", Arg.Any<CancellationToken>());
@@ -115,16 +115,16 @@ public sealed class CachingBehaviorTests
 
     // --- Helpers ---
 
-    private sealed record CacheableQuery(string Key) : IRequest<string>, ICacheableQuery
+    private sealed record CacheableQuery(string Key) : IQuery<string>, ICacheableQuery
     {
         public string CacheKey => Key;
         public TimeSpan? AbsoluteExpiration => TimeSpan.FromMinutes(1);
     }
 
-    private sealed record InvalidatingCommand(params string[] Keys) : IRequest, ICacheInvalidator
+    private sealed record InvalidatingCommand(params string[] Keys) : ICommand, ICacheInvalidator
     {
         public IEnumerable<string> CacheKeysToInvalidate => Keys;
     }
 
-    private sealed record PlainQuery : IRequest<string>;
+    private sealed record PlainQuery : IQuery<string>;
 }

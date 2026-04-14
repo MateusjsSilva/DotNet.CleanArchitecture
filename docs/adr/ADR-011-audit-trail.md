@@ -13,10 +13,10 @@ All mutating operations on auditable entities should record who performed them a
 |---|---|---|
 | `CreatedAt` | Insert | `DateTime.UtcNow` |
 | `CreatedBy` | Insert | `ICurrentUserService.UserName` |
-| `UpdatedAt` | Update | `DateTime.UtcNow` |
-| `UpdatedBy` | Update | `ICurrentUserService.UserName` |
-| `DeletedAt` | Soft delete | `DateTime.UtcNow` (via `SoftDelete()`) |
-| `DeletedBy` | Soft delete | `ICurrentUserService.UserName` |
+| `UpdatedAt` | Update (including soft delete) | `DateTime.UtcNow` |
+| `UpdatedBy` | Update (including soft delete) | `ICurrentUserService.UserName` |
+| `DeletedAt` | Soft delete (first `SaveChanges` after `SoftDelete()`) | `DateTime.UtcNow` in `ApplicationDbContext.SetAuditFields()` |
+| `DeletedBy` | Soft delete (first `SaveChanges` after `SoftDelete()`) | `ICurrentUserService.UserName` in `ApplicationDbContext.SetAuditFields()` |
 
 `ICurrentUserService` is an Application-layer interface implemented in Infrastructure by `CurrentUserService`, which reads the authenticated user from `IHttpContextAccessor`:
 
@@ -27,6 +27,8 @@ public string? UserName =>
 ```
 
 For unauthenticated requests (e.g., public endpoints, background services, EF CLI tools), `UserName` returns `null` — the audit fields are simply left empty without throwing.
+
+> **Note on DeletedAt/By**: `AuditableEntity.SoftDelete()` sets only `IsDeleted = true`. The `DeletedAt` and `DeletedBy` fields are stamped inside `ApplicationDbContext.SetAuditFields()` during `SaveChangesAsync`, matching the same centralized pattern as `CreatedAt`/`UpdatedAt`. This means `DeletedAt` is `null` between calling `SoftDelete()` and the subsequent `SaveChangesAsync` — e.g., in unit tests that do not hit the database. This is expected and documented.
 
 ## Consequences
 - **Positive**: All handlers get audit fields for free — no `CreatedBy = currentUser` in every command handler.

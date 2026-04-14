@@ -20,13 +20,18 @@ public interface ISoftDeletable
 public abstract class AuditableEntity : BaseEntity, ISoftDeletable
 {
     public bool IsDeleted { get; private set; }
-    public DateTime? DeletedAt { get; private set; }
+    public DateTime? DeletedAt { get; set; }   // stamped by ApplicationDbContext, not here
     public string? DeletedBy { get; set; }
 
+    /// <summary>
+    /// Marks the entity as soft-deleted. Audit fields (DeletedAt, DeletedBy) are stamped
+    /// by ApplicationDbContext.SetAuditFields() during SaveChangesAsync — not here —
+    /// keeping all audit logic in one place (see ADR-011).
+    /// </summary>
     public void SoftDelete()
     {
+        if (IsDeleted) return; // idempotent
         IsDeleted = true;
-        DeletedAt = DateTime.UtcNow;
     }
 }
 ```

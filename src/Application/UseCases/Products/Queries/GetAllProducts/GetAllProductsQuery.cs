@@ -1,6 +1,6 @@
 using CleanArchitecture.Application.Common;
+using CleanArchitecture.Application.Common.Mediator;
 using CleanArchitecture.Application.DTOs;
-using MediatR;
 
 namespace CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 
@@ -17,4 +17,24 @@ public sealed record GetAllProductsQuery(
     bool Ascending = false,
     string? NameContains = null,
     decimal? MinPrice = null,
-    decimal? MaxPrice = null) : IRequest<PagedResult<ProductDto>>;
+    decimal? MaxPrice = null)
+    : IQuery<PagedResult<ProductDto>>, ICacheableQuery
+{
+    /// <summary>
+    /// Generates a unique cache key based on query parameters.
+    /// Changes to any filter automatically invalidate the cache.
+    /// </summary>
+    public string CacheKey =>
+        $"{CacheKeys.ProductCollections}:page={Page}:pageSize={PageSize}:orderBy={OrderBy}:ascending={Ascending}" +
+        $":onlyActive={OnlyActive}:name={NameContains}:minPrice={MinPrice}:maxPrice={MaxPrice}";
+
+    public string? CacheKeyPrefix => CacheKeys.ProductCollections;
+
+    /// <summary>
+    /// Uses sliding expiration (5 minutes).
+    /// Cache expires only if not accessed for 5 minutes.
+    /// </summary>
+    public TimeSpan? AbsoluteExpiration => null;
+
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
+}
