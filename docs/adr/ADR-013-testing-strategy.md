@@ -12,13 +12,13 @@ Three test projects targeting different layers of the pyramid:
 
 ```
          ┌─────────────────┐
-         │  Integration     │  11 tests — real HTTP stack
+         │  Integration     │  ~24 tests — real HTTP stack
          │  Tests           │  in-memory DB + in-process server
          ├─────────────────┤
-         │  Unit Tests      │  33 tests — pure logic, no I/O
+         │  Unit Tests      │  ~36 tests — pure logic, no I/O
          │                  │  mocked dependencies (NSubstitute)
          ├─────────────────┤
-         │  Architecture    │   7 tests — dependency rules
+         │  Architecture    │  ~12 tests — dependency rules
          │  Tests           │  static analysis (NetArchTest)
          └─────────────────┘
 ```
@@ -75,7 +75,7 @@ The template uses **EF InMemory** for fast, dependency-free CI. For production p
 > **Testcontainers upgrade path**: Replace `AddEntityFrameworkInMemoryDatabase()` in `WebApplicationFactoryFixture` with a Testcontainers `MsSqlContainer`, add `Respawn` to reset the database between tests. This validates real SQL Server behavior including migrations, indexes, and transactions.
 
 ## Consequences
-- **Positive**: Tests run in ~5 s total with zero external dependencies (no Docker, no SQL Server).
+- **Positive**: Tests run in ~10 s total with zero external dependencies (no Docker, no SQL Server).
 - **Positive**: Each layer is tested in isolation — unit tests don't start the HTTP stack; architecture tests don't execute any code.
 - **Positive**: The cache invalidation test (`Update_AfterCacheHit_ShouldReturnFreshData`) demonstrates the full read→mutate→read cycle with real pipeline behaviors running.
 - **Negative**: EF InMemory does not enforce referential integrity, unique constraints, or SQL Server-specific column types — these require Testcontainers.

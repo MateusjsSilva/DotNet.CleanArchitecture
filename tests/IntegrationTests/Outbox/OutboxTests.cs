@@ -21,7 +21,7 @@ public sealed class OutboxTests(WebApplicationFactoryFixture factory) : IAsyncLi
     public Task InitializeAsync() => factory.ResetDatabaseAsync();
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly HttpClient _client = factory.CreateAuthenticatedClient();
 
     [Fact]
     public async Task CreateProduct_ShouldPersistOutboxMessage_WithCorrectEventType()

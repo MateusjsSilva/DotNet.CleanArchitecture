@@ -8,7 +8,7 @@ Some queries (e.g., fetching a product by ID) are called frequently with the sam
 
 ## Decision
 
-Two **marker interfaces** and a single **MediatR pipeline behavior** `CachingBehavior` handle both concerns.
+Two **marker interfaces** and a single **custom pipeline behavior** `CachingBehavior` handle both concerns.
 
 ### Cache provider strategy
 
@@ -33,7 +33,7 @@ A query opts in to caching by implementing `ICacheableQuery`:
 
 ```csharp
 public sealed record GetProductByIdQuery(Guid Id)
-    : IRequest<ProductDto?>, ICacheableQuery
+    : IQuery<ProductDto?>, ICacheableQuery
 {
     public string CacheKey => $"product:{Id}";
     public TimeSpan? AbsoluteExpiration => TimeSpan.FromMinutes(10);
@@ -55,9 +55,10 @@ A command opts in to cache eviction by implementing `ICacheInvalidator`:
 
 ```csharp
 public sealed record UpdateProductCommand(Guid Id, string Name, ...)
-    : IRequest<ProductDto>, ICacheInvalidator
+    : ICommand<ProductDto>, ICacheInvalidator
 {
     public IEnumerable<string> CacheKeysToInvalidate => [$"product:{Id}"];
+    public IEnumerable<string> CacheKeyPrefixesToInvalidate => ["products"];
 }
 ```
 

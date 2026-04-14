@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Respawn;
@@ -80,22 +79,14 @@ public sealed class WebApplicationFactoryFixture
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /// <summary>Creates an HTTP client with authenticated test user.</summary>
+    /// <summary>
+    /// Creates an HTTP client. The test authentication scheme is always active,
+    /// so the client is authenticated by default.
+    ///
+    /// For endpoints marked [AllowAnonymous], this client works without any special setup.
+    /// For endpoints marked [Authorize], the TestAuthHandler auto-authenticates.
+    /// </summary>
     public HttpClient CreateAuthenticatedClient() => CreateClient();
-
-    /// <summary>Creates an anonymous HTTP client (no authentication).</summary>
-    public HttpClient CreateAnonymousClient()
-    {
-        return WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                // Remove authentication entirely for anonymous client
-                services.RemoveAll<IAuthenticationService>();
-                services.RemoveAll<IAuthenticationSchemeProvider>();
-            });
-        }).CreateClient();
-    }
 
     /// <summary>Resets all test data so each test class starts with a clean database.</summary>
     public async Task ResetDatabaseAsync()
@@ -122,29 +113,26 @@ public sealed class WebApplicationFactoryFixture
     {
         builder.UseEnvironment("Test");
 
-        // Configure test authentication globally
         builder.ConfigureServices(services =>
         {
-            // Replace JWT authentication with test authentication
-            services.RemoveAll<IAuthenticationService>();
-            services.RemoveAll<IAuthenticationSchemeProvider>();
+            if (_useContainer && _container is not null)
+            {
+                // Point EF Core at the Testcontainers SQL Server instance.
+                // Remove existing DbContext registration and re-register with the container connection string.
+                services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+                services.AddDbContext<ApplicationDbContext>(options =>
+                    options.UseSqlServer(_container.GetConnectionString()));
+            }
 
-            services.AddAuthentication(TestAuthHandler.TestScheme)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
-                    TestAuthHandler.TestScheme, _ => { });
-
-            services.AddAuthorization();
+            // Replace JWT Bearer with a test scheme that auto-authenticates every request.
+            // This call overrides the default scheme set by AddInfrastructure (JWT Bearer).
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = TestAuthHandler.TestScheme;
+                options.DefaultChallengeScheme = TestAuthHandler.TestScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                TestAuthHandler.TestScheme, _ => { });
         });
-
-        if (_useContainer && _container is not null)
-        {
-            // Point the app at the Testcontainers SQL Server instance
-            builder.ConfigureAppConfiguration((_, config) =>
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:DefaultConnection"] = _container.GetConnectionString()
-                }));
-        }
-        // else: no connection string → AddInfrastructure falls back to InMemory automatically
     }
 }

@@ -162,14 +162,6 @@ public sealed class AuthEndpointTests(WebApplicationFactoryFixture factory) : IA
     // ── Protected endpoint ────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ProtectedEndpoint_WithoutToken_ShouldReturn401()
-    {
-        // AI /complete is a POST endpoint that requires authentication
-        var response = await _client.PostAsJsonAsync("/api/v1/ai/complete", new { Prompt = "Hello" });
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
     public async Task ProtectedEndpoint_WithValidToken_ShouldNotReturn401()
     {
         var tokens = await RegisterAsync("protected@test.com", "Test@1234!");

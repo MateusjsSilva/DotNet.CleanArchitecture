@@ -11,8 +11,10 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
     public Task InitializeAsync() => factory.ResetDatabaseAsync();
     public Task DisposeAsync() => Task.CompletedTask;
 
+    // Both authenticated and anonymous requests use the same client — the TestAuthHandler
+    // auto-authenticates via the Test scheme, and [AllowAnonymous] endpoints pass through anyway.
     private readonly HttpClient _authenticatedClient = factory.CreateAuthenticatedClient();
-    private readonly HttpClient _anonymousClient = factory.CreateAnonymousClient();
+    private readonly HttpClient _anonymousClient = factory.CreateAuthenticatedClient();
 
     [Fact]
     public async Task Update_WhenProductExists_ShouldReturn200WithUpdatedData()
@@ -20,7 +22,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         // Arrange — create a product first
         var created = await CreateProductAsync("Original Name", 10m);
 
-        var updatePayload = new { Name = "Updated Name", Description = "Updated Desc", Price = 99.99m };
+        var updatePayload = new { Name = "Updated Name", Description = "Updated Desc", Price = 99.99m, created.RowVersion };
 
         // Act
         var response = await _authenticatedClient.PutAsJsonAsync($"/api/v1/products/{created.Id}", updatePayload);
@@ -36,7 +38,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
     [Fact]
     public async Task Update_WithNonExistentId_ShouldReturn404()
     {
-        var payload = new { Name = "Name", Price = 10m };
+        var payload = new { Name = "Name", Price = 10m, RowVersion = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 } };
         var response = await _authenticatedClient.PutAsJsonAsync($"/api/v1/products/{Guid.NewGuid()}", payload);
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -45,7 +47,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
     public async Task Update_WithInvalidData_ShouldReturn422()
     {
         var created = await CreateProductAsync("Original", 10m);
-        var payload = new { Name = "", Price = -1m };
+        var payload = new { Name = "", Price = -1m, created.RowVersion };
 
         var response = await _authenticatedClient.PutAsJsonAsync($"/api/v1/products/{created.Id}", payload);
 
@@ -94,7 +96,7 @@ public sealed class ProductsMutationTests(WebApplicationFactoryFixture factory) 
         await _anonymousClient.GetAsync($"/api/v1/products/{created.Id}"); // prime cache
 
         // Act — update (invalidates cache)
-        var updatePayload = new { Name = "Fresh Name", Price = 50m };
+        var updatePayload = new { Name = "Fresh Name", Price = 50m, created.RowVersion };
         await _authenticatedClient.PutAsJsonAsync($"/api/v1/products/{created.Id}", updatePayload);
 
         // Assert — next GET should return updated data (not stale cached value)

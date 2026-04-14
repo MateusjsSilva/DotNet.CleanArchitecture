@@ -16,7 +16,7 @@ sequenceDiagram
     participant O as OutboxProcessor
     participant EH as EventHandler
 
-    C->>H: SendAsync(UpdateProductCommand)
+    C->>H: mediator.SendAsync(UpdateProductCommand)
     H->>CB: ICacheInvalidator processing
     CB->>CB: Cache invalidation (automatic)
     H->>E: product.Update(name, price)
@@ -28,7 +28,7 @@ sequenceDiagram
     DB->>DB: ConvertDomainEventsToOutboxMessages()
 
     Note over O: Background service (10s interval)
-    O->>EH: publisher.Publish(ProductUpdatedEvent)
+    O->>EH: mediator.PublishAsync(ProductUpdatedEvent)
     EH->>EH: Metrics collection + logging ONLY
     O->>DB: Mark message as processed
 ```
@@ -69,18 +69,15 @@ public override async Task<int> SaveChangesAsync(CancellationToken cancellationT
 ```csharp
 internal sealed class ProductUpdatedEventHandler(
     ILogger<ProductUpdatedEventHandler> logger)
-    : INotificationHandler<ProductUpdatedEvent>
+    : IDomainEventHandler<ProductUpdatedEvent>
 {
-    private static readonly Counter<int> ProductsUpdatedCounter =
-        Meter.CreateCounter<int>("products.updated.count");
-
-    public Task Handle(ProductUpdatedEvent notification, CancellationToken cancellationToken)
+    public Task Handle(ProductUpdatedEvent domainEvent, CancellationToken cancellationToken)
     {
         logger.LogInformation("Product updated: {ProductId} - {ProductName}",
-            notification.ProductId, notification.ProductName);
+            domainEvent.ProductId, domainEvent.ProductName);
 
         // Metrics collection (unique responsibility)
-        RecordMetrics(notification);
+        ProductTelemetry.UpdatedCounter.Add(1);
 
         return Task.CompletedTask;
     }

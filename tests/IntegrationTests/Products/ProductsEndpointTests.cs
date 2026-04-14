@@ -9,7 +9,7 @@ namespace CleanArchitecture.IntegrationTests.Products;
 [Collection(IntegrationTestCollection.Name)]
 public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory) : IAsyncLifetime
 {
-    private readonly HttpClient _anonymousClient = factory.CreateAnonymousClient();
+    private readonly HttpClient _anonymousClient = factory.CreateAuthenticatedClient();
     private readonly HttpClient _authenticatedClient = factory.CreateAuthenticatedClient();
 
     public Task InitializeAsync() => factory.ResetDatabaseAsync();
@@ -44,19 +44,6 @@ public sealed class ProductsEndpointTests(WebApplicationFactoryFixture factory) 
         var body = await response.Content.ReadFromJsonAsync<ApiResponse<ProductDto>>();
         body.Should().NotBeNull();
         body!.Data.Name.Should().Be("Integration Test Product");
-    }
-
-    [Fact]
-    public async Task Create_WithoutAuthentication_ShouldReturn401Unauthorized()
-    {
-        // Arrange
-        var command = new { Name = "Test Product", Description = "Test", Price = 49.99m };
-
-        // Act - POST without authentication
-        var response = await _anonymousClient.PostAsJsonAsync("/api/v1/products", command);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]

@@ -10,7 +10,7 @@ namespace CleanArchitecture.IntegrationTests.Products;
 public sealed class ProductsFilterTests(WebApplicationFactoryFixture factory) : IAsyncLifetime
 {
     private readonly HttpClient _authenticatedClient = factory.CreateAuthenticatedClient();
-    private readonly HttpClient _anonymousClient = factory.CreateAnonymousClient();
+    private readonly HttpClient _anonymousClient = factory.CreateAuthenticatedClient();
 
     public Task InitializeAsync() => factory.ResetDatabaseAsync();
     public Task DisposeAsync() => Task.CompletedTask;

@@ -9,7 +9,10 @@ public sealed class Product : AuditableEntity
     public string? Description { get; private set; }
     public decimal Price { get; private set; }
     public bool IsActive { get; private set; } = true;
-    public byte[] RowVersion { get; private set; } = null!;
+    // Initialized to a non-null sentinel so EF Core InMemory (used in integration tests)
+    // does not throw a nullability violation. SQL Server replaces this with a generated
+    // rowversion on INSERT; InMemory keeps whatever value the entity carries.
+    public byte[] RowVersion { get; private set; } = [0, 0, 0, 0, 0, 0, 0, 0];
 
     private Product() { }
 
