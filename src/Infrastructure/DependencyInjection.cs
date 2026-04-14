@@ -88,6 +88,8 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 
+        services.Configure<OutboxProcessorSettings>(
+            configuration.GetSection(OutboxProcessorSettings.SectionName));
         services.AddHostedService<OutboxProcessorService>();
 
         // Distributed cache: Redis when configured, in-memory otherwise.

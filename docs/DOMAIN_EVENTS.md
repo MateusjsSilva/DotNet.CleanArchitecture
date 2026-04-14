@@ -30,14 +30,14 @@ sequenceDiagram
     Note over CB: Handler succeeded — now invalidate cache
     CB->>CB: ICacheInvalidator: evict product key + prefix registry
 
-    Note over O: Background service (10 s interval)
+    Note over O: Background service (IntervalSeconds, default 10 s)
     O->>DB: query OutboxMessages WHERE ProcessedAt IS NULL
     O->>EH: mediator.PublishAsync(ProductUpdatedEvent)
     EH->>EH: Log + increment metrics counter
     O->>DB: message.ProcessedAt = UtcNow, SaveChangesAsync
 ```
 
-**Key sequencing rule**: cache invalidation fires *after* the handler returns successfully, inside `CachingBehavior`. Domain events are dispatched *asynchronously* by `OutboxProcessorService` — they run up to 10 seconds later, independently of the HTTP response.
+**Key sequencing rule**: cache invalidation fires *after* the handler returns successfully, inside `CachingBehavior`. Domain events are dispatched *asynchronously* by `OutboxProcessorService` — they run up to `OutboxProcessor:IntervalSeconds` seconds later (default 10 s), independently of the HTTP response.
 
 ## System Components
 
@@ -100,7 +100,7 @@ internal sealed class ProductUpdatedEventHandler(
 
 ### 4. Outbox Processor — resilience features
 
-`OutboxProcessorService` polls every 10 seconds and includes:
+`OutboxProcessorService` polls every `OutboxProcessor:IntervalSeconds` seconds (default 10, configurable via `appsettings.json`) and includes:
 
 - **Polly exponential backoff**: 3 retries (2 s, 4 s, 8 s) per message
 - **Dead Letter Queue**: messages exceeding max retries move to `DeadLetterMessages`

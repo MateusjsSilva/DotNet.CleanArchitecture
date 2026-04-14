@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Polly;
 using System.Diagnostics;
 using System.Text.Json;
@@ -12,24 +13,27 @@ namespace CleanArchitecture.Infrastructure.Persistence.Outbox;
 
 /// <summary>
 /// Background service that polls the OutboxMessages table and dispatches
-/// pending domain events via MediatR. Runs every 10 seconds.
+/// pending domain events via the custom mediator.
+///
+/// Tunable via <c>OutboxProcessor</c> section in appsettings.json:
+/// - <c>IntervalSeconds</c> (default 10): polling cadence
+/// - <c>MaxRetries</c>     (default 3):  retries before DLQ
+/// - <c>BatchSize</c>      (default 20): messages per cycle
 ///
 /// Features:
-/// - Exponential backoff retry with Polly (max 3 retries)
+/// - Exponential backoff retry with Polly (2 s, 4 s, 8 s)
 /// - Dead Letter Queue (DLQ) for messages exceeding max retries
 /// - Idempotent processing to prevent duplicate event handling
 /// - Event versioning support for schema evolution
 /// - Graceful shutdown to process final messages
-/// - Circuit breaker to prevent cascading failures
 /// </summary>
 internal sealed class OutboxProcessorService(
     IServiceScopeFactory scopeFactory,
+    IOptions<OutboxProcessorSettings> options,
     ILogger<OutboxProcessorService> logger)
     : BackgroundService
 {
-    private static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(10);
-    private const int MaxRetries = 3;
-    private const int BatchSize = 20;
+    private readonly OutboxProcessorSettings _settings = options.Value;
 
     private IAsyncPolicy? _retryPolicy;
 
@@ -37,14 +41,15 @@ internal sealed class OutboxProcessorService(
         _retryPolicy ??= Policy
             .Handle<Exception>()
             .WaitAndRetryAsync(
-                retryCount: MaxRetries,
+                retryCount: _settings.MaxRetries,
                 sleepDurationProvider: attempt =>
                     TimeSpan.FromSeconds(Math.Pow(2, attempt)));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Outbox processor started with {MaxRetries} max retries, exponential backoff.",
-            MaxRetries);
+        logger.LogInformation(
+            "Outbox processor started. Interval: {IntervalSeconds}s, MaxRetries: {MaxRetries}, BatchSize: {BatchSize}.",
+            _settings.IntervalSeconds, _settings.MaxRetries, _settings.BatchSize);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -57,7 +62,7 @@ internal sealed class OutboxProcessorService(
                 logger.LogError(ex, "Unhandled error in outbox processor.");
             }
 
-            await Task.Delay(PollingInterval, stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(_settings.IntervalSeconds), stoppingToken);
         }
 
         // Graceful shutdown: process final pending messages
@@ -83,7 +88,7 @@ internal sealed class OutboxProcessorService(
         var messages = await dbContext.OutboxMessages
             .Where(m => m.ProcessedAt == null && !dbContext.DeadLetterMessages.Any(d => d.OutboxMessageId == m.Id))
             .OrderBy(m => m.OccurredAt)
-            .Take(BatchSize)
+            .Take(_settings.BatchSize)
             .ToListAsync(cancellationToken);
 
         if (messages.Count == 0)
@@ -172,7 +177,7 @@ internal sealed class OutboxProcessorService(
         {
             message.RetryCount++;
 
-            if (message.RetryCount >= MaxRetries)
+            if (message.RetryCount >= _settings.MaxRetries)
             {
                 await MoveToDeadLetterAsync(
                     dbContext,
@@ -186,7 +191,7 @@ internal sealed class OutboxProcessorService(
                 message.Error = ex.Message;
                 logger.LogWarning(ex,
                     "Failed to process outbox message {Id}, retry {Attempt}/{Max}.",
-                    message.Id, message.RetryCount, MaxRetries);
+                    message.Id, message.RetryCount, _settings.MaxRetries);
             }
         }
     }

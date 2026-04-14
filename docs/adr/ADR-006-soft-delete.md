@@ -61,3 +61,46 @@ private static void ApplySoftDeleteQueryFilters(ModelBuilder modelBuilder)
 - **Positive**: Adding soft delete to a new entity type only requires implementing `ISoftDeletable` (inherited via `AuditableEntity`).
 - **Negative**: The database grows over time. A scheduled purge job can permanently delete records older than a retention window.
 - **Negative**: `IgnoreQueryFilters()` must be used in admin queries that need to see deleted records.
+
+## Performance: index on `IsDeleted`
+
+The global filter `WHERE IsDeleted = 0` appended to every query can force a full table scan without a supporting index. Two strategies:
+
+**Option A — Filtered index (recommended for large tables)**
+```sql
+-- Indexes only the live rows; near-zero storage for the deleted minority.
+CREATE INDEX IX_Products_IsDeleted_Id
+    ON Products (IsDeleted, Id)
+    WHERE IsDeleted = 0;
+```
+Add this in the EF configuration via `HasIndex` with `HasFilter`:
+```csharp
+builder.HasIndex(p => new { p.IsDeleted, p.Id })
+       .HasFilter("[IsDeleted] = 0");
+```
+
+**Option B — Composite index (simpler, no filter clause)**
+```csharp
+builder.HasIndex(p => new { p.IsDeleted, p.Name });
+```
+
+The template does **not** add these indexes automatically because the right strategy depends on the entity's query patterns and expected deleted-to-live ratio. Add them when you add your first entity with meaningful data volume.
+
+**UNIQUE constraints** on soft-deletable tables require a filtered index to allow re-insertion of a logically deleted name:
+```sql
+CREATE UNIQUE INDEX UX_Products_Name
+    ON Products (Name)
+    WHERE IsDeleted = 0;
+```
+Without `WHERE IsDeleted = 0`, attempting to re-create a deleted product with the same name will violate the constraint.
+
+## GDPR / Data Erasure Compliance
+
+Soft delete retains all personal data indefinitely. If your application is subject to GDPR (or similar regulations) and receives a **right-to-erasure** request, soft delete alone is insufficient.
+
+Options:
+1. **Data redaction on soft delete** — overwrite personal fields (`Name`, `Email`, etc.) with anonymised values before setting `IsDeleted = true`.
+2. **Separate archive table** — move soft-deleted rows to a cold-storage table with a shorter retention policy.
+3. **Scheduled hard delete** — a background job permanently deletes rows where `IsDeleted = true AND DeletedAt < (UtcNow - retentionWindow)`.
+
+The right strategy depends on your retention policy. This template does not implement any of these options to avoid prescribing a compliance approach; the implementer must add one before handling personal data in a regulated context.
