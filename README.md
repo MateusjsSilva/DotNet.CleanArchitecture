@@ -10,6 +10,7 @@ A production-ready .NET 10 Clean Architecture solution template with CQRS, Domai
 - [Request Flow](#request-flow)
 - [Domain Model](#domain-model)
 - [Outbox Pattern](#outbox-pattern)
+- [Contributing / Adding Features](docs/CONTRIBUTING.md)
 - [Authentication Flow](#authentication-flow)
 - [Infrastructure (Docker)](#infrastructure-docker)
 - [Getting Started](#getting-started)
@@ -468,22 +469,37 @@ All services start automatically: API, SQL Server, Jaeger, Prometheus, Grafana.
 # 1. Restore & build
 dotnet build
 
-# 2. Add the initial migration (only once)
-dotnet ef migrations add InitialCreate \
-  --project src/Infrastructure \
-  --startup-project src/WebAPI \
-  --output-dir Persistence/Migrations
-
-# 3. Apply migrations
+# 2. Apply the existing migrations
 dotnet ef database update \
   --project src/Infrastructure \
   --startup-project src/WebAPI
 
-# 4. Run the API
+# 3. Run the API
 dotnet run --project src/WebAPI
 
 # API docs → https://localhost:PORT/scalar/v1
 ```
+
+> **Using this as a `dotnet new` template?**
+> The repository ships with pre-built migrations that target SQL Server / LocalDB.
+> After scaffolding your project with `dotnet new cleanarch -n MyApp`, delete the
+> existing migrations and create your own:
+> ```bash
+> # Delete the template migrations
+> rm -r src/Infrastructure/Persistence/Migrations
+>
+> # Scaffold a fresh initial migration for your database
+> dotnet ef migrations add InitialCreate \
+>   --project src/Infrastructure \
+>   --startup-project src/WebAPI \
+>   --output-dir Persistence/Migrations
+>
+> dotnet ef database update \
+>   --project src/Infrastructure \
+>   --startup-project src/WebAPI
+> ```
+> Skipping this step and applying the template migrations to a different DB provider
+> (e.g. PostgreSQL) will fail with provider-specific column-type errors.
 
 ### Running tests
 
