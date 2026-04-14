@@ -27,6 +27,8 @@ public sealed class WebApplicationFactoryFixture
     private MsSqlContainer? _container;
     private Respawner? _respawner;
     private bool _useContainer;
+    // Set after InitializeAsync completes; read lazily by the ConfigureWebHost lambda.
+    private string? _connectionString;
 
     // ── IAsyncLifetime ────────────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ public sealed class WebApplicationFactoryFixture
 
             await _container.StartAsync();
             _useContainer = true;
+            _connectionString = _container.GetConnectionString();
 
             // Apply EF Core migrations once against the fresh container
             using var scope = Services.CreateScope();
@@ -47,7 +50,7 @@ public sealed class WebApplicationFactoryFixture
             await db.Database.MigrateAsync();
 
             // Configure Respawn to delete all rows between test classes
-            await using var connection = new SqlConnection(_container.GetConnectionString());
+            await using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
             {
@@ -91,9 +94,9 @@ public sealed class WebApplicationFactoryFixture
     /// <summary>Resets all test data so each test class starts with a clean database.</summary>
     public async Task ResetDatabaseAsync()
     {
-        if (_useContainer && _container is not null && _respawner is not null)
+        if (_useContainer && _connectionString is not null && _respawner is not null)
         {
-            await using var connection = new SqlConnection(_container.GetConnectionString());
+            await using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             await _respawner.ResetAsync(connection);
         }
@@ -115,13 +118,14 @@ public sealed class WebApplicationFactoryFixture
 
         builder.ConfigureServices(services =>
         {
-            if (_useContainer && _container is not null)
+            if (_useContainer && _connectionString is not null)
             {
                 // Point EF Core at the Testcontainers SQL Server instance.
                 // Remove existing DbContext registration and re-register with the container connection string.
+                // _connectionString is set during InitializeAsync before any client is created.
                 services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
                 services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseSqlServer(_container.GetConnectionString()));
+                    options.UseSqlServer(_connectionString));
             }
 
             // Replace JWT Bearer with a test scheme that auto-authenticates every request.
