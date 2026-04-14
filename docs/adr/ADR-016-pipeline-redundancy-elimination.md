@@ -107,4 +107,4 @@ Domain event handlers are now focused on their core unique purposes:
 - [ADR-009: Caching Strategy](ADR-009-caching.md) - Defines the `ICacheInvalidator` interface
 - [ADR-011: Audit Trail](ADR-011-audit-trail.md) - Defines automatic audit via `ApplicationDbContext`
 - [ADR-005: Domain Events & Outbox](ADR-005-domain-events-outbox.md) - Defines event handler responsibilities
-- [ADR-002: CQRS with MediatR](ADR-002-cqrs-mediatr.md) - Defines pipeline behavior execution order
+- [ADR-002: CQRS with Custom Mediator](ADR-002-cqrs-mediator.md) - Defines pipeline behavior execution order

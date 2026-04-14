@@ -174,7 +174,7 @@ src/
 
 ## References
 
-- [ADR-002: CQRS with MediatR](ADR-002-cqrs-mediatr.md) - Original MediatR implementation
+- [ADR-002: CQRS with Custom Mediator](ADR-002-cqrs-mediator.md) - Original CQRS decisions (superseded)
 - [ADR-005: Domain Events & Outbox](ADR-005-domain-events-outbox.md) - Event publishing patterns
 - [ADR-009: Caching Strategy](ADR-009-caching.md) - Pipeline behavior integration
 

@@ -86,7 +86,6 @@ public sealed class Product : AuditableEntity
     public void Deactivate()
     {
         IsActive = false;
-        RaiseDomainEvent(new ProductDeletedEvent(Id, Name));
     }
 
     public void Activate() => IsActive = true;

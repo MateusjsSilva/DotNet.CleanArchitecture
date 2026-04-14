@@ -14,8 +14,10 @@ All error responses use **Problem Details** via a custom `ExceptionHandlingMiddl
 | Exception | HTTP Status | ProblemDetails type |
 |---|---|---|
 | `NotFoundException` | 404 Not Found | `ProblemDetails` |
+| `ConcurrencyException` | 409 Conflict | `ProblemDetails` |
 | `DomainException` | 400 Bad Request | `ProblemDetails` |
 | `ValidationException` (FluentValidation) | 422 Unprocessable Entity | `ValidationProblemDetails` |
+| `UnauthorizedAccessException` | 401 Unauthorized | `ProblemDetails` |
 | Any other `Exception` | 500 Internal Server Error | `ProblemDetails` |
 
 ### Response shape

@@ -1,128 +1,141 @@
-# Domain Events Architecture - Updated Documentation
+# Domain Events Architecture
 
-## 📋 Overview
+## Overview
 
-The Domain Events system implements the **Outbox Pattern** to ensure **eventual consistency** between domain operations and side effects. **After ADR-016 pipeline optimization**, handlers focus solely on unique responsibilities while avoiding duplication.
+The Domain Events system implements the **Outbox Pattern** to ensure **eventual consistency** between domain operations and their side effects. Handlers focus solely on unique responsibilities (metrics, operational logging) — caching and audit are handled by dedicated infrastructure components.
 
-## 🔄 Simplified Pipeline Flow (Post ADR-016)
+## Pipeline Flow
 
 ```mermaid
 sequenceDiagram
     participant C as Controller
-    participant H as CommandHandler
     participant CB as CachingBehavior
+    participant H as CommandHandler
     participant E as Entity (Product)
     participant DB as ApplicationDbContext
-    participant O as OutboxProcessor
+    participant O as OutboxProcessorService
     participant EH as EventHandler
 
-    C->>H: mediator.SendAsync(UpdateProductCommand)
-    H->>CB: ICacheInvalidator processing
-    CB->>CB: Cache invalidation (automatic)
+    C->>CB: mediator.SendAsync(UpdateProductCommand)
+    Note over CB: Logging → Validation → CachingBehavior (outermost)
+    CB->>H: next() — call handler
     H->>E: product.Update(name, price)
     E->>E: RaiseDomainEvent(ProductUpdatedEvent)
     H->>DB: unitOfWork.SaveChangesAsync()
-
-    Note over DB: Automatic audit + outbox conversion
-    DB->>DB: Audit fields populated (ADR-011)
+    Note over DB: Audit fields stamped (ADR-011)
+    DB->>DB: SetAuditFields() — CreatedAt/UpdatedAt/DeletedAt
     DB->>DB: ConvertDomainEventsToOutboxMessages()
+    DB-->>H: saved
+    H-->>CB: returns ProductDto
+    Note over CB: Handler succeeded — now invalidate cache
+    CB->>CB: ICacheInvalidator: evict product key + prefix registry
 
-    Note over O: Background service (10s interval)
+    Note over O: Background service (10 s interval)
+    O->>DB: query OutboxMessages WHERE ProcessedAt IS NULL
     O->>EH: mediator.PublishAsync(ProductUpdatedEvent)
-    EH->>EH: Metrics collection + logging ONLY
-    O->>DB: Mark message as processed
+    EH->>EH: Log + increment metrics counter
+    O->>DB: message.ProcessedAt = UtcNow, SaveChangesAsync
 ```
 
-## 🧩 System Components (Updated)
+**Key sequencing rule**: cache invalidation fires *after* the handler returns successfully, inside `CachingBehavior`. Domain events are dispatched *asynchronously* by `OutboxProcessorService` — they run up to 10 seconds later, independently of the HTTP response.
 
-### 1. **Cache Invalidation Pipeline**
-**ADR-016 Decision**: Single responsibility via `CachingBehavior`
+## System Components
+
+### 1. Cache Invalidation — single path via `CachingBehavior`
+
+Commands implement `ICacheInvalidator`. `CachingBehavior` evicts the listed keys *after* the handler completes. Event handlers never touch the cache.
 
 ```csharp
-// Commands implement ICacheInvalidator
-public sealed record UpdateProductCommand : ICacheInvalidator
+public sealed record UpdateProductCommand(Guid Id, ...) : ICommand<ProductDto>, ICacheInvalidator
 {
-    public IEnumerable<string> CacheKeysToInvalidate => [$"product:{Id}"];
+    public IEnumerable<string> CacheKeysToInvalidate =>
+        ProductCacheInvalidation.GetIndividualProductKeys(Id);
+    public IEnumerable<string> CacheKeyPrefixesToInvalidate =>
+        ProductCacheInvalidation.GetProductListPrefixes();
 }
-
-// Cache invalidation happens automatically in CachingBehavior
-// Event handlers NO LONGER duplicate this logic
 ```
 
-### 2. **Audit Trail Pipeline**
-**ADR-011 Decision**: Automatic via `ApplicationDbContext.SaveChangesAsync()`
+### 2. Audit Trail — single path via `ApplicationDbContext`
+
+`SetAuditFields()` in `SaveChangesAsync` stamps `CreatedAt/By`, `UpdatedAt/By`, and — for soft-deleted entities — `DeletedAt/By`. Event handlers never write audit fields.
 
 ```csharp
-public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+// Inside ApplicationDbContext.SetAuditFields()
+if (entry.State == EntityState.Added)
 {
-    SetAuditFields(); // ⚡ AUTOMATIC AUDIT (CreatedBy, UpdatedBy, etc.)
-    ConvertDomainEventsToOutboxMessages();
-    return await base.SaveChangesAsync(cancellationToken);
+    entry.Entity.CreatedAt = DateTime.UtcNow;
+    entry.Entity.CreatedBy = currentUserService.UserName;
 }
-
-// Event handlers NO LONGER duplicate audit logging
+else
+{
+    if (entry.Entity is { IsDeleted: true, DeletedAt: null })
+    {
+        entry.Entity.DeletedAt = DateTime.UtcNow;
+        entry.Entity.DeletedBy = currentUserService.UserName;
+    }
+    entry.Entity.UpdatedAt = DateTime.UtcNow;
+    entry.Entity.UpdatedBy = currentUserService.UserName;
+}
 ```
 
-### 3. **Simplified Event Handlers** (Post ADR-016)
-**Current Focus**: Metrics collection + operational logging only
+### 3. Event Handlers — metrics + operational logging only
 
 ```csharp
 internal sealed class ProductUpdatedEventHandler(
     ILogger<ProductUpdatedEventHandler> logger)
     : IDomainEventHandler<ProductUpdatedEvent>
 {
-    public Task Handle(ProductUpdatedEvent domainEvent, CancellationToken cancellationToken)
+    public Task Handle(ProductUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Product updated: {ProductId} - {ProductName}",
-            domainEvent.ProductId, domainEvent.ProductName);
+        logger.LogInformation("Product updated: {ProductId} - {ProductName} - Price: {NewPrice}",
+            notification.ProductId, notification.ProductName, notification.NewPrice);
 
-        // Metrics collection (unique responsibility)
-        ProductTelemetry.UpdatedCounter.Add(1);
+        ProductTelemetry.UpdatedCounter.Add(1,
+            new KeyValuePair<string, object?>("product_id", notification.ProductId));
 
         return Task.CompletedTask;
     }
 }
 ```
 
-## ✅ What's Correct Now (Post ADR-016)
+### 4. Outbox Processor — resilience features
 
-1. **Single Responsibility**: Each component handles exactly one concern
-2. **No Duplication**: Cache invalidation happens once via `CachingBehavior`
-3. **No Duplication**: Audit trails happen once via `ApplicationDbContext`
-4. **Clean Pipeline**: Event handlers focus on unique side effects only
-5. **Consistent**: Following established ADR patterns
+`OutboxProcessorService` polls every 10 seconds and includes:
 
-## 📊 Before vs After ADR-016
+- **Polly exponential backoff**: 3 retries (2 s, 4 s, 8 s) per message
+- **Dead Letter Queue**: messages exceeding max retries move to `DeadLetterMessages`
+- **Idempotency**: SHA-256(type + content) key prevents duplicate dispatch on retry
+- **Event versioning**: `EventMigrationHandler` can up-convert old event payloads
 
-| Component | Before (Redundant) | After (Optimized) |
+## Component Responsibility Matrix
+
+| Concern | Component | Where |
 |---|---|---|
-| **Cache Invalidation** | Commands + Event Handlers | Commands only (via ICacheInvalidator) |
-| **Audit Logging** | ApplicationDbContext + Event Handlers | ApplicationDbContext only (automatic) |
-| **Event Handlers** | Multiple responsibilities | Single responsibility (metrics) |
-| **Documentation** | Scattered, contradictory | Centralized in ADR-016 |
+| Cache invalidation | `CachingBehavior` + `ICacheInvalidator` | Application pipeline |
+| Audit stamping | `ApplicationDbContext.SetAuditFields()` | Infrastructure, on `SaveChanges` |
+| Domain event capture | `ApplicationDbContext.ConvertDomainEventsToOutboxMessages()` | Infrastructure, on `SaveChanges` |
+| Event dispatch | `OutboxProcessorService` | Infrastructure, background |
+| Metrics | `ProductTelemetry` counters in event handlers | Application |
+| Operational logging | Event handlers + `LoggingBehavior` | Application |
 
-## 🎯 Current Event Handler Responsibilities
+## Event Catalogue
 
-| Handler | Unique Responsibility |
+| Domain Event | Raised by | Fields |
+|---|---|---|
+| `ProductCreatedEvent` | `Product.Create()` | `ProductId`, `ProductName` |
+| `ProductUpdatedEvent` | `Product.Update()` | `ProductId`, `ProductName`, `NewPrice`, `NewDescription` |
+| `ProductPatchedEvent` | `Product.Patch()` | `ProductId`, `ProductName`, `ChangedFields` (dict of old→new values) |
+| `ProductDeletedEvent` | `DeleteProductCommandHandler` via `product.SoftDelete()` + EF `Modified` state | `ProductId`, `ProductName` |
+
+> **Note**: `Product.Deactivate()` sets `IsActive = false` but does **not** raise a domain event — it is a status toggle, not a lifecycle deletion. The audit trail (`UpdatedAt/By`) records the change automatically.
+
+## Related ADRs
+
+| ADR | Topic |
 |---|---|
-| `ProductCreatedEventHandler` | Creation metrics + operational logging |
-| `ProductUpdatedEventHandler` | Update metrics + operational logging |
-| `ProductDeletedEventHandler` | Deletion metrics + operational logging |
-| `ProductPatchedEventHandler` | Field-level metrics + operational logging |
-
-## 📚 Related Documentation
-
-- **[ADR-016: Pipeline Redundancy Elimination](../adr/ADR-016-pipeline-redundancy-elimination.md)** - Documents the cleanup decisions
-- **[ADR-009: Caching Strategy](../adr/ADR-009-caching.md)** - Explains ICacheInvalidator pattern
-- **[ADR-011: Audit Trail](../adr/ADR-011-audit-trail.md)** - Explains automatic audit via ApplicationDbContext
-- **[ADR-005: Domain Events & Outbox](../adr/ADR-005-domain-events-outbox.md)** - Core outbox pattern
-
-## ✅ Conclusion
-
-The Domain Events system is **optimized and production-ready** with:
-
-- ✅ **No Redundancy**: Each operation happens exactly once
-- ✅ **Clear Separation**: Cache, audit, and metrics have distinct pipelines
-- ✅ **Maintainable**: Changes require updates in only one place
-- ✅ **Observable**: Metrics provide operational visibility
-- ✅ **Documented**: Decisions captured in ADR-016
+| [ADR-005](adr/ADR-005-domain-events-outbox.md) | Core outbox pattern |
+| [ADR-009](adr/ADR-009-caching.md) | `ICacheInvalidator` interface and prefix registry |
+| [ADR-011](adr/ADR-011-audit-trail.md) | Automatic audit via `ApplicationDbContext` |
+| [ADR-015](adr/ADR-015-production-ready-enhancements.md) | Polly retry, DLQ, event versioning, idempotency |
+| [ADR-016](adr/ADR-016-pipeline-redundancy-elimination.md) | Why handlers do not duplicate cache/audit |
+| [ADR-019](adr/ADR-019-soft-delete-concurrency-interaction.md) | Soft delete + concurrency interaction |
