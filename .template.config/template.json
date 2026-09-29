@@ -57,6 +57,18 @@
   },
   "sources": [
     {
+      "exclude": [
+        ".git/**",
+        ".vs/**",
+        ".idea/**",
+        ".template-test*/**",
+        "bin/**",
+        "obj/**",
+        "**/bin/**",
+        "**/obj/**",
+        "logs/**",
+        "**/*.user"
+      ],
       "modifiers": [
         {
           "condition": "(!IncludeSample)",
@@ -65,6 +77,7 @@
             "src/Domain/Events/Product*.cs",
             "src/Domain/Interfaces/IProductRepository.cs",
             "src/Application/DTOs/Product*.cs",
+            "src/Application/Interfaces/IProductQueries.cs",
             "src/Application/UseCases/Products/**",
             "src/Application/Validators/*Product*.cs",
             "src/Application/Validators/Common/ProductValidationRules.cs",

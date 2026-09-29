@@ -6,15 +6,18 @@ namespace CleanArchitecture.Application.Common;
 /// </summary>
 public static class CacheKeys
 {
+//#if (IncludeSample)
     // Entity-specific prefixes (namespaced to prevent conflicts)
     private const string ProductEntityPrefix = "entity:product";
     private const string ProductCollectionPrefix = "collection:products";
+//#endif
 
     /// <summary>
     /// Cache registry prefix for tracking invalidation keys. Format: "registry:{prefix}"
     /// </summary>
     private const string RegistryPrefix = "registry";
 
+//#if (IncludeSample)
     // --- Product Cache Keys ---
 
     /// <summary>
@@ -28,6 +31,7 @@ public static class CacheKeys
     /// Prefix for product collection cache keys (lists, queries, etc.).
     /// </summary>
     public static string ProductCollections => ProductCollectionPrefix;
+//#endif
 
     /// <summary>
     /// Gets the cache registry key for a given prefix.
@@ -36,9 +40,5 @@ public static class CacheKeys
     /// <returns>Registry key in format "registry:{prefix}"</returns>
     public static string Registry(string prefix) => $"{RegistryPrefix}:{prefix}";
 
-    // --- Future: Ready for other entities ---
-    // When adding Customer, Order, etc., use similar pattern:
-    // private const string CustomerEntityPrefix = "entity:customer";
-    // private const string CustomerCollectionPrefix = "collection:customers";
-    // public static string Customer(Guid customerId) => $"{CustomerEntityPrefix}:{customerId}";
+    // Add entity-specific cache keys here as your use cases need them.
 }

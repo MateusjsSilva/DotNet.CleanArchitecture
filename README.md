@@ -451,9 +451,13 @@ dotnet new install .
 
 # Create a new project (renames all namespaces, assemblies, and files)
 dotnet new cleanarch -n MyCompany.MyApp
+
+# Optional: include the Products sample domain/endpoints/tests/migrations
+dotnet new cleanarch -n MyCompany.MyApp --IncludeSample
 ```
 
 > `sourceName: "CleanArchitecture"` in `.template.config/template.json` replaces every occurrence of `CleanArchitecture` with the value you pass via `-n`.
+> By default, new projects start without the Products sample so you can model your own domain without deleting template code.
 
 ### Running with Docker (recommended)
 
@@ -481,14 +485,8 @@ dotnet run --project src/WebAPI
 ```
 
 > **Using this as a `dotnet new` template?**
-> The repository ships with pre-built migrations that target PostgreSQL.
-> After scaffolding your project with `dotnet new cleanarch -n MyApp`, delete the
-> existing migrations and create your own:
+> New projects are generated without sample migrations by default. After adding your first domain entities, create your initial migration:
 > ```bash
-> # Delete the template migrations
-> rm -r src/Infrastructure/Persistence/Migrations
->
-> # Scaffold a fresh initial migration for your database
 > dotnet ef migrations add InitialCreate \
 >   --project src/Infrastructure \
 >   --startup-project src/WebAPI \

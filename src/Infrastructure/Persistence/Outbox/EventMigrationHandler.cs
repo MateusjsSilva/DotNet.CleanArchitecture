@@ -4,9 +4,6 @@ namespace CleanArchitecture.Infrastructure.Persistence.Outbox;
 
 /// <summary>
 /// Handles migration of domain events when their schema evolves.
-///
-/// Example: If ProductCreatedEvent adds a new field "SKU" in v2,
-/// this handler converts v1 events to v2 before processing.
 /// </summary>
 public static class EventMigrationHandler
 {
@@ -22,16 +19,19 @@ public static class EventMigrationHandler
         // Example migration paths (add more as your events evolve)
         return eventType switch
         {
+//#if (IncludeSample)
             // Example: ProductCreatedEvent v1 -> v2 migration
             // Before: { "productId": "...", "productName": "..." }
             // After:  { "productId": "...", "productName": "...", "productSku": null }
             "CleanArchitecture.Domain.Events.ProductCreatedEvent" when fromVersion == 1 && toVersion == 2
                 => MigrateProductCreatedEventV1ToV2(eventJson),
+//#endif
 
             _ => null  // No migration path found
         };
     }
 
+//#if (IncludeSample)
     private static string? MigrateProductCreatedEventV1ToV2(string eventJson)
     {
         try
@@ -52,4 +52,5 @@ public static class EventMigrationHandler
             return null;
         }
     }
+//#endif
 }

@@ -17,7 +17,9 @@ internal static class RateLimitingExtensions
 {
     // Policy names - use in [RequireRateLimiting] attributes on controllers/actions
     internal const string AuthPolicy = "auth";        // Strict: 5 req/min (prevents brute force on login/register)
+//#if (IncludeSample)
     internal const string ProductsPolicy = "products"; // Standard: 100 req/min (CRUD operations)
+//#endif
     internal const string AIPolicy = "ai";            // Relaxed: 30 req/min (resource-intensive operations)
     internal const string DefaultPolicy = "default";  // Fallback: 50 req/min (other endpoints)
 
@@ -35,6 +37,7 @@ internal static class RateLimitingExtensions
                 cfg.QueueLimit = 0;
             });
 
+//#if (IncludeSample)
             // Products endpoints: standard rate limiting for normal CRUD operations
             options.AddFixedWindowLimiter(ProductsPolicy, cfg =>
             {
@@ -43,6 +46,7 @@ internal static class RateLimitingExtensions
                 cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                 cfg.QueueLimit = 0;
             });
+//#endif
 
             // AI endpoints: relaxed rate limiting (resource-intensive operations)
             options.AddFixedWindowLimiter(AIPolicy, cfg =>

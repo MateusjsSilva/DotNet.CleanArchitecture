@@ -32,6 +32,7 @@ TestResults/
 *.trx
 *.coverage
 *.coveragexml
+.template-test-clean-*/
 
 ## Migrations (uncomment if you want to exclude auto-generated migrations)
 # src/Infrastructure/Persistence/Migrations/

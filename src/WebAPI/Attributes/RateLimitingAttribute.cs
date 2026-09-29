@@ -20,7 +20,9 @@ public sealed class GranularRateLimitAttribute(string policyName) : Attribute
 public static class RateLimitPolicies
 {
     public const string Auth = RateLimitingExtensions.AuthPolicy;       // 5 req/min - brute force protection
+//#if (IncludeSample)
     public const string Products = RateLimitingExtensions.ProductsPolicy; // 100 req/min - standard CRUD
+//#endif
     public const string AI = RateLimitingExtensions.AIPolicy;           // 30 req/min - resource-intensive
     public const string Default = RateLimitingExtensions.DefaultPolicy;  // 50 req/min - fallback
 }

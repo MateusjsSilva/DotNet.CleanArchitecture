@@ -1,5 +1,4 @@
 using CleanArchitecture.Application.Common.Mediator;
-using CleanArchitecture.Application.UseCases.Products.Queries.GetAllProducts;
 using CleanArchitecture.Domain.Common;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.WebAPI.Controllers;
@@ -12,9 +11,9 @@ namespace CleanArchitecture.ArchitectureTests;
 public sealed class DependencyRulesTests
 {
     private static readonly Assembly DomainAssembly = typeof(BaseEntity).Assembly;
-    private static readonly Assembly ApplicationAssembly = typeof(GetAllProductsQuery).Assembly;
+    private static readonly Assembly ApplicationAssembly = typeof(IMediator).Assembly;
     private static readonly Assembly InfrastructureAssembly = typeof(ApplicationDbContext).Assembly;
-    private static readonly Assembly PresentationAssembly = typeof(ProductsController).Assembly;
+    private static readonly Assembly PresentationAssembly = typeof(AuthController).Assembly;
 
     // ── Layer dependency rules ────────────────────────────────────────────────
 

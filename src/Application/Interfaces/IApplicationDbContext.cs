@@ -1,4 +1,6 @@
+//#if (IncludeSample)
 using CleanArchitecture.Domain.Entities;
+//#endif
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanArchitecture.Application.Interfaces;
@@ -10,5 +12,7 @@ namespace CleanArchitecture.Application.Interfaces;
 /// </summary>
 public interface IApplicationDbContext
 {
+//#if (IncludeSample)
     DbSet<Product> Products { get; }
+//#endif
 }
