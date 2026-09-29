@@ -52,6 +52,7 @@ public sealed class ApplicationDbContext(
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SetAuditFields();
+        SetConcurrencyTokens();
         ConvertDomainEventsToOutboxMessages();
 
         return await base.SaveChangesAsync(cancellationToken);
@@ -81,6 +82,18 @@ public sealed class ApplicationDbContext(
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
                 entry.Entity.UpdatedBy = currentUserService.UserName;
             }
+        }
+    }
+
+    private void SetConcurrencyTokens()
+    {
+        var entries = ChangeTracker
+            .Entries<Product>()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified);
+
+        foreach (var entry in entries)
+        {
+            entry.Entity.RefreshRowVersion();
         }
     }
 

@@ -9,9 +9,8 @@ public sealed class Product : AuditableEntity
     public string? Description { get; private set; }
     public decimal Price { get; private set; }
     public bool IsActive { get; private set; } = true;
-    // Initialized to a non-null sentinel so EF Core InMemory (used in integration tests)
-    // does not throw a nullability violation. SQL Server replaces this with a generated
-    // rowversion on INSERT; InMemory keeps whatever value the entity carries.
+    // Application-managed optimistic concurrency token. It is regenerated on insert/update
+    // by ApplicationDbContext so it works consistently across PostgreSQL and InMemory tests.
     public byte[] RowVersion { get; private set; } = [0, 0, 0, 0, 0, 0, 0, 0];
 
     private Product() { }
@@ -89,4 +88,6 @@ public sealed class Product : AuditableEntity
     }
 
     public void Activate() => IsActive = true;
+
+    public void RefreshRowVersion() => RowVersion = Guid.NewGuid().ToByteArray();
 }

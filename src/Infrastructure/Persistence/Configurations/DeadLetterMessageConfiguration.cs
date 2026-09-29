@@ -38,6 +38,6 @@ internal sealed class DeadLetterMessageConfiguration : IEntityTypeConfiguration<
 
         // Index for reprocessing
         builder.HasIndex(m => m.ReprocessedAt)
-            .HasFilter("[ReprocessedAt] IS NULL");
+            .HasFilter("\"ReprocessedAt\" IS NULL");
     }
 }

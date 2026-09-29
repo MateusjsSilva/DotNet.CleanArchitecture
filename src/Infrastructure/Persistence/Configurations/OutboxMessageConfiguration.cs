@@ -28,10 +28,10 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
 
         // Index to quickly find unprocessed messages
         builder.HasIndex(m => m.ProcessedAt)
-            .HasFilter("[ProcessedAt] IS NULL");
+            .HasFilter("\"ProcessedAt\" IS NULL");
 
         // Index for idempotency checking
         builder.HasIndex(m => m.IdempotencyKey)
-            .HasFilter("[IdempotencyKey] IS NOT NULL");
+            .HasFilter("\"IdempotencyKey\" IS NOT NULL");
     }
 }

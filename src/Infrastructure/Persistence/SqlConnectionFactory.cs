@@ -1,5 +1,5 @@
 using CleanArchitecture.Application.Interfaces;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Configuration;
 using System.Data;
 
@@ -12,6 +12,6 @@ internal sealed class SqlConnectionFactory(IConfiguration configuration) : ISqlC
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-        return new SqlConnection(connectionString);
+        return new NpgsqlConnection(connectionString);
     }
 }

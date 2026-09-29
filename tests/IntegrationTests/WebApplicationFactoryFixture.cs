@@ -2,11 +2,11 @@ using CleanArchitecture.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Respawn;
-using Testcontainers.MsSql;
+using Testcontainers.PostgreSql;
 
 namespace CleanArchitecture.IntegrationTests;
 
@@ -14,7 +14,7 @@ namespace CleanArchitecture.IntegrationTests;
 /// Shared fixture for all integration test collections.
 ///
 /// Strategy:
-///   • Docker available  → Testcontainers SQL Server + Respawn (real SQL, full migration coverage)
+///   • Docker available  → Testcontainers PostgreSQL + Respawn (real SQL, full migration coverage)
 ///   • Docker unavailable → EF Core InMemory (fast, zero-dependency, no Docker required)
 ///
 /// Both modes are valid for smoke/integration tests.
@@ -23,7 +23,7 @@ namespace CleanArchitecture.IntegrationTests;
 public sealed class WebApplicationFactoryFixture
     : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private MsSqlContainer? _container;
+    private PostgreSqlContainer? _container;
     private Respawner? _respawner;
     private bool _useContainer;
     // Set after InitializeAsync completes; read lazily by the ConfigureWebHost lambda.
@@ -35,8 +35,11 @@ public sealed class WebApplicationFactoryFixture
     {
         try
         {
-            _container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            _container = new PostgreSqlBuilder()
+                .WithImage("postgres:17-alpine")
+                .WithDatabase("CleanArchitectureTests")
+                .WithUsername("postgres")
+                .WithPassword("postgres")
                 .Build();
 
             await _container.StartAsync();
@@ -49,11 +52,11 @@ public sealed class WebApplicationFactoryFixture
             await db.Database.MigrateAsync();
 
             // Configure Respawn to delete all rows between test classes
-            await using var connection = new SqlConnection(_connectionString);
+            await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync();
             _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
             {
-                DbAdapter = DbAdapter.SqlServer,
+                DbAdapter = DbAdapter.Postgres,
                 TablesToIgnore = ["__EFMigrationsHistory"]
             });
         }
@@ -95,7 +98,7 @@ public sealed class WebApplicationFactoryFixture
     {
         if (_useContainer && _connectionString is not null && _respawner is not null)
         {
-            await using var connection = new SqlConnection(_connectionString);
+            await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync();
             await _respawner.ResetAsync(connection);
         }
@@ -116,7 +119,7 @@ public sealed class WebApplicationFactoryFixture
         builder.UseEnvironment("Test");
 
         // Inject the Testcontainers connection string into configuration BEFORE the app's
-        // AddInfrastructure runs. This way AddInfrastructure naturally picks the SqlServer
+        // AddInfrastructure runs. This way AddInfrastructure naturally picks the PostgreSQL
         // branch instead of InMemory — no service descriptor surgery needed.
         if (_useContainer && _connectionString is not null)
             builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);

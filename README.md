@@ -402,7 +402,7 @@ public sealed record UpdateProductCommand(Guid Id, ...) : ICommand<ProductDto>, 
 graph TB
     subgraph docker-compose
         API["CleanArchitecture.API\n:5000 / :5001"]
-        SQL["SQL Server 2022\n:1433"]
+        SQL["PostgreSQL 17\n:5432"]
         Jaeger["Jaeger\nUI :16686\nOTLP :4317"]
         Prom["Prometheus\n:9090"]
         Grafana["Grafana\n:3000\nadmin/admin"]
@@ -441,7 +441,7 @@ graph TB
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- Docker (for the full stack) or SQL Server / LocalDB
+- Docker (for the full stack) or PostgreSQL
 
 ### Using as a `dotnet new` template
 
@@ -461,7 +461,7 @@ dotnet new cleanarch -n MyCompany.MyApp
 docker compose up --build
 ```
 
-All services start automatically: API, SQL Server, Jaeger, Prometheus, Grafana.
+All services start automatically: API, PostgreSQL, Jaeger, Prometheus, Grafana.
 
 ### Running locally
 
@@ -481,7 +481,7 @@ dotnet run --project src/WebAPI
 ```
 
 > **Using this as a `dotnet new` template?**
-> The repository ships with pre-built migrations that target SQL Server / LocalDB.
+> The repository ships with pre-built migrations that target PostgreSQL.
 > After scaffolding your project with `dotnet new cleanarch -n MyApp`, delete the
 > existing migrations and create your own:
 > ```bash
@@ -499,7 +499,7 @@ dotnet run --project src/WebAPI
 >   --startup-project src/WebAPI
 > ```
 > Skipping this step and applying the template migrations to a different DB provider
-> (e.g. PostgreSQL) will fail with provider-specific column-type errors.
+> will fail with provider-specific column-type errors.
 
 ### Running tests
 
@@ -525,7 +525,7 @@ dotnet test --collect:"XPlat Code Coverage"
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=CleanArchitectureDb;..."
+    "DefaultConnection": "Host=localhost;Port=5432;Database=CleanArchitectureDb;Username=postgres;Password=postgres;GSS Encryption Mode=Disable"
   },
   "JwtSettings": {
     "Secret": "CHANGE_THIS_TO_A_STRONG_SECRET_MIN_32_CHARS",

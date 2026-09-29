@@ -21,10 +21,10 @@ public sealed class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Ap
             .Build();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? "Server=(localdb)\\mssqllocaldb;Database=CleanArchitectureDb_Dev;Trusted_Connection=True;";
+            ?? "Host=localhost;Port=5432;Database=CleanArchitectureDb_Dev;Username=postgres;Password=postgres;GSS Encryption Mode=Disable";
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseSqlServer(connectionString);
+        optionsBuilder.UseNpgsql(connectionString);
 
         return new ApplicationDbContext(optionsBuilder.Options, new NoOpCurrentUserService());
     }

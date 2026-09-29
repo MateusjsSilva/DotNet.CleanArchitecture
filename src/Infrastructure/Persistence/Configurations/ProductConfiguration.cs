@@ -23,9 +23,9 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.IsActive)
             .HasDefaultValue(true);
 
-        // Optimistic concurrency control
         builder.Property(p => p.RowVersion)
-            .IsRowVersion();
+            .IsConcurrencyToken()
+            .IsRequired();
 
         builder.HasIndex(p => p.Name);
     }

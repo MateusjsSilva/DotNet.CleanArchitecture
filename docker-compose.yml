@@ -9,29 +9,29 @@ services:
       - "5001:8081"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=CleanArchitectureDb;User=sa;Password=Your_Strong_Password!;TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=CleanArchitectureDb;Username=postgres;Password=postgres;GSS Encryption Mode=Disable
       - ConnectionStrings__Redis=redis:6379
       - Observability__Otlp__Endpoint=http://jaeger:4317
     depends_on:
-      sqlserver:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       jaeger:
         condition: service_started
 
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+  postgres:
+    image: postgres:17-alpine
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=Your_Strong_Password!
-      - MSSQL_PID=Developer
+      - POSTGRES_DB=CleanArchitectureDb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     ports:
-      - "1433:1433"
+      - "5432:5432"
     volumes:
-      - sqlserver-data:/var/opt/mssql
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Your_Strong_Password!' -Q 'SELECT 1' -No -C || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d CleanArchitectureDb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -83,7 +83,7 @@ services:
       - prometheus
 
 volumes:
-  sqlserver-data:
+  postgres-data:
   redis-data:
   prometheus-data:
   grafana-data:
