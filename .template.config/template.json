@@ -1,11 +1,11 @@
 {
   "$schema": "http://json.schemastore.org/template",
   "author": "Mateus Silva",
-  "classifications": ["Clean Architecture", "WebAPI", "DDD", "CQRS", "MediatR"],
+  "classifications": ["Clean Architecture", "WebAPI", "DDD", "CQRS", "Mediator"],
   "identity": "CleanArchitecture.Template",
   "name": ".NET Clean Architecture Template",
   "shortName": "cleanarch",
-  "description": "Production-ready Clean Architecture solution with Domain, Application, Infrastructure, and WebAPI layers. Includes CQRS/MediatR, EF Core, JWT auth, Outbox pattern, Soft Delete, Caching, OpenTelemetry, Prometheus/Grafana, and more.",
+  "description": "Production-ready Clean Architecture solution with Domain, Application, Infrastructure, and WebAPI layers. Includes CQRS with a custom mediator, EF Core, JWT auth, Outbox pattern, Soft Delete, Caching, OpenTelemetry, Prometheus/Grafana, and more.",
   "tags": {
     "language": "C#",
     "type": "solution"
@@ -52,7 +52,7 @@
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include the Modules.AI example project (Claude API integration)."
+      "description": "Include the Modules.AI example project (Semantic Kernel AI module)."
     }
   },
   "sources": [

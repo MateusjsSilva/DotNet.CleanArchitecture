@@ -8,9 +8,11 @@ A production-ready .NET 10 Clean Architecture solution template with CQRS, Domai
 - [Project Structure](#project-structure)
 - [Tech Stack](#tech-stack)
 - [Request Flow](#request-flow)
-- [Domain Model](#domain-model)
+- [Sample Domain](#sample-domain)
 - [Outbox Pattern](#outbox-pattern)
 - [Contributing / Adding Features](docs/CONTRIBUTING.md)
+- [Template Usage](docs/TEMPLATE_USAGE.md)
+- [Security and Dependency Checks](docs/SECURITY.md)
 - [Authentication Flow](#authentication-flow)
 - [Infrastructure (Docker)](#infrastructure-docker)
 - [Getting Started](#getting-started)
@@ -142,16 +144,17 @@ docker/
 | ORM (write side) | Entity Framework Core | 10 |
 | Read-side queries | Dapper | 2 |
 | Authentication | ASP.NET Core Identity + JWT Bearer | 10 |
-| AI Integration | Microsoft Semantic Kernel | 1.73 |
+| Database | PostgreSQL + Npgsql EF Core provider | 17 / 10 |
+| AI Integration | Microsoft Semantic Kernel | 1.80 |
 | Logging | Serilog | 9 |
-| Tracing | OpenTelemetry → Jaeger (OTLP) | 1.12 |
-| Metrics | OpenTelemetry → Prometheus + Grafana | 1.12 |
+| Tracing | OpenTelemetry → Jaeger (OTLP) | 1.19 |
+| Metrics | OpenTelemetry → Prometheus + Grafana | 1.19 |
 | Health Checks | ASP.NET Core + EF Core | 10 |
 | Rate Limiting | ASP.NET Core (Fixed Window) | 10 |
 | CORS | ASP.NET Core | 10 |
 | Resilience | Microsoft.Extensions.Http.Resilience (Polly) | 9 |
 | API Versioning | Asp.Versioning.Mvc | 8 |
-| API Docs | Scalar + OpenAPI | 2 |
+| API Docs | Scalar + OpenAPI | 2 / 10 |
 | Unit Tests | xUnit + NSubstitute + FluentAssertions | — |
 | Architecture Tests | NetArchTest | — |
 | Containerization | Docker + docker-compose | — |
@@ -224,7 +227,15 @@ All error responses use **Problem Details (RFC 9457)**:
 
 ---
 
-## Domain Model
+## Sample Domain
+
+Products is an optional reference feature. New projects generated with `dotnet new cleanarch -n MyApp` do not include it. Add it only when you want a working example of entity, events, commands, queries, validators, repository, controller, tests, seed data, and migrations:
+
+```bash
+dotnet new cleanarch -n MyApp --IncludeSample
+```
+
+<!--#if (IncludeSample) -->
 
 ```mermaid
 classDiagram
@@ -280,9 +291,11 @@ classDiagram
     Product ..> ProductCreatedEvent : raises
     ProductCreatedEvent ..|> IDomainEvent
 ```
+<!--#endif -->
 
 ### Soft Delete
 
+<!--#if (IncludeSample) -->
 `Product.SoftDelete()` marks the record as deleted without removing it from the database. A global EF Core query filter (`!IsDeleted`) is applied automatically to all `ISoftDeletable` entities, so soft-deleted records are **invisible** to all queries by default.
 
 ```mermaid
@@ -293,6 +306,9 @@ flowchart LR
     D --> E[SaveChanges]
     E --> F[Record stays in DB\nbut is filtered out]
 ```
+<!--#else -->
+Entities that inherit `AuditableEntity` get `SoftDelete()` and are automatically filtered from normal EF Core queries through the global `ISoftDeletable` query filter.
+<!--#endif -->
 
 ---
 
@@ -458,6 +474,7 @@ dotnet new cleanarch -n MyCompany.MyApp --IncludeSample
 
 > `sourceName: "CleanArchitecture"` in `.template.config/template.json` replaces every occurrence of `CleanArchitecture` with the value you pass via `-n`.
 > By default, new projects start without the Products sample so you can model your own domain without deleting template code.
+> See [Template Usage](docs/TEMPLATE_USAGE.md) for all template options and recommended first steps.
 
 ### Running with Docker (recommended)
 
@@ -473,7 +490,7 @@ All services start automatically: API, PostgreSQL, Jaeger, Prometheus, Grafana.
 # 1. Restore & build
 dotnet build
 
-# 2. Apply the existing migrations
+# 2. Apply migrations, if the project already has them
 dotnet ef database update \
   --project src/Infrastructure \
   --startup-project src/WebAPI
@@ -496,13 +513,11 @@ dotnet run --project src/WebAPI
 >   --project src/Infrastructure \
 >   --startup-project src/WebAPI
 > ```
-> Skipping this step and applying the template migrations to a different DB provider
-> will fail with provider-specific column-type errors.
 
 ### Running tests
 
 ```bash
-# All tests (48 tests across 3 suites)
+# All tests (101 passing, 3 skipped by design in the sample suite)
 dotnet test
 
 # Specific suite
@@ -587,6 +602,7 @@ If `ApiKey` is empty, a no-op service is registered and the rest of the API work
 
 All routes are versioned under `/api/v{version}/`.
 
+<!--#if (IncludeSample) -->
 ### Products — `/api/v1/products`
 
 | Method | Route | Description | Auth |
@@ -597,6 +613,7 @@ All routes are versioned under `/api/v{version}/`.
 | `POST` | `/` | Create product | — |
 | `PUT` | `/{id}` | Update product | — |
 | `DELETE` | `/{id}` | Soft-delete product | — |
+<!--#endif -->
 
 ### Auth — `/api/v1/auth`
 
@@ -688,7 +705,7 @@ Additional rules:
 |---|---|
 | **GUID v7** | Time-ordered, database-friendly IDs without UUID fragmentation |
 | **Manual mapping** | No AutoMapper/Mapster; `ToDto()` extension methods are explicit, refactor-safe, and easy to trace |
-| **Dapper on read side** | Complex projections and reporting queries use raw SQL via `IProductQueries`; EF Core handles writes |
+| **Dapper on read side** | Complex projections and reporting queries can use raw SQL via query-specific interfaces; EF Core handles writes |
 | **Outbox Pattern** | Domain events persisted in the same DB transaction; delivery survives process restarts |
 | **Soft Delete** | `ISoftDeletable` + global EF query filter; records are never physically deleted |
 | **Refresh token rotation** | Every `/auth/refresh` revokes the old token and issues a new pair; reuse is detectable |
@@ -701,13 +718,13 @@ Additional rules:
 | **`IDesignTimeDbContextFactory`** | No startup project needed for `dotnet ef` CLI commands |
 | **Problem Details (RFC 9457)** | All error responses include `traceId` and `instance` for distributed tracing correlation |
 | **API Versioning** | All routes versioned via URL segment (`/api/v1/...`); adding `[ApiVersion(2)]` to a controller is all that's needed to introduce v2 |
-| **Rate Limiting (Granular)** | ASP.NET Core built-in `RateLimiter` with 4 policies (auth: 5/min, products: 100/min, ai: 30/min, default: 50/min); fixed window + queue for fairness; Problem Details for 429 |
+| **Rate Limiting (Granular)** | ASP.NET Core built-in `RateLimiter` with strict auth, AI, default, and optional sample policies; fixed window + queue for fairness; Problem Details for 429 |
 | **Polly Resilience** | Exponential backoff retry (2s, 4s, 8s) for OutboxProcessor; handles transient failures gracefully |
 | **Dead Letter Queue** | Failed events moved to `DeadLetterMessages` after 3 retries; enables investigation and manual reprocessing |
 | **Event Versioning** | Schema evolution via `EventVersion` field + `EventMigrationHandler`; backward-compatible event processing |
 | **Idempotency Keys** | `OutboxMessage.IdempotencyKey` prevents duplicate processing; essential for message retries |
 | **Cache with Sliding Expiration** | `ICacheableQuery` supports both absolute and sliding expiration; `CachingBehavior` applies intelligently per-query |
-| **Development Seeding** | `ApplicationDbContextSeeder` auto-populates realistic data in Development environment |
+| **Optional sample** | Products sample can be generated with `--IncludeSample`; new projects are clean by default |
 
 ---
 
@@ -718,7 +735,7 @@ All significant architectural decisions are documented in **`docs/adr/`** using 
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-001](docs/adr/ADR-001-clean-architecture.md) | Clean Architecture Layers | Accepted |
-| [ADR-002](docs/adr/ADR-002-cqrs-mediatr.md) | CQRS with MediatR | Accepted |
+| [ADR-002](docs/adr/ADR-002-cqrs-mediator.md) | CQRS with Custom Mediator | Accepted |
 | [ADR-003](docs/adr/ADR-003-guid-v7.md) | GUID v7 IDs | Accepted |
 | [ADR-004](docs/adr/ADR-004-manual-mapping.md) | Manual DTO Mapping (no AutoMapper) | Accepted |
 | [ADR-005](docs/adr/ADR-005-domain-events-outbox.md) | Domain Events & Outbox Pattern | Accepted |
@@ -735,5 +752,6 @@ All significant architectural decisions are documented in **`docs/adr/`** using 
 | [ADR-016](docs/adr/ADR-016-pipeline-redundancy-elimination.md) | Pipeline Redundancy Elimination | **Accepted** 🚀 |
 | [ADR-017](docs/adr/ADR-017-custom-mediator-implementation.md) | Custom Mediator Implementation (MediatR Replacement) | **Accepted** 💰 |
 | [ADR-018](docs/adr/ADR-018-iapplicationdbcontext-readonly.md) | IApplicationDbContext as Read-Only Contract | **Accepted** 🔒 |
+| [ADR-019](docs/adr/ADR-019-soft-delete-concurrency-interaction.md) | Soft Delete and Optimistic Concurrency Interaction | Accepted |
 
 > 💡 **New in this version (ADR-014 – ADR-018)**: Granular rate limiting policies, Polly resilience with exponential backoff, Dead Letter Queue for failed events, Event versioning framework, Idempotency keys, development data seeding, pipeline redundancy elimination, custom MediatR-free mediator with full pipeline support, and read-only `IApplicationDbContext` contract enforcement.

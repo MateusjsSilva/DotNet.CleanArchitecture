@@ -323,7 +323,7 @@ public sealed record GetProductByIdQuery : ICacheableQuery
 - ✅ Reduced database load
 - ✅ Intelligent expiration (access-aware)
 - ✅ Configurable per-query
-- ✅ Transparent caching in MediatR pipeline
+- ✅ Transparent caching in the mediator pipeline
 
 ---
 

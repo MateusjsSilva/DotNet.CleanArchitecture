@@ -19,7 +19,7 @@ Use **OpenTelemetry** as the single instrumentation layer with pluggable exporte
 
 ### Application layer tracing
 
-`ApplicationActivitySource` in the Application layer uses only `System.Diagnostics.ActivitySource` (BCL — no NuGet OTel package). This keeps the Application layer free of infrastructure dependencies. `LoggingBehavior` starts an activity per MediatR request and tags it with error info on failure.
+`ApplicationActivitySource` in the Application layer uses only `System.Diagnostics.ActivitySource` (BCL — no NuGet OTel package). This keeps the Application layer free of infrastructure dependencies. `LoggingBehavior` starts an activity per mediator request and tags it with error info on failure.
 
 ```csharp
 // Application layer — no OTel package reference
@@ -50,6 +50,6 @@ public static class ApplicationActivitySource
 
 ## Consequences
 - **Positive**: Vendor-neutral — swap Jaeger for Grafana Tempo, or Prometheus for InfluxDB, by changing config only.
-- **Positive**: Every HTTP request and every MediatR handler has a correlated trace via `traceId` in the Problem Details error response.
+- **Positive**: Every HTTP request and every mediator handler has a correlated trace via `traceId` in the Problem Details error response.
 - **Positive**: Application layer has zero OTel package dependency.
 - **Negative**: Adds several NuGet packages to the WebAPI project.

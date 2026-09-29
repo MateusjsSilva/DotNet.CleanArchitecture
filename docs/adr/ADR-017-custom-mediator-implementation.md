@@ -190,4 +190,4 @@ The custom mediator implementation successfully:
 - ✅ **Eliminates Licensing Costs**: Zero recurring fees for MediatR usage
 - ✅ **Reduces Dependencies**: Removed MediatR and MediatR.Contracts packages
 - ✅ **Supports Domain Events**: Outbox pattern continues to work seamlessly
-- ✅ **48 tests passing**: Unit, Architecture, and Integration test suites all green
+- ✅ **101 tests passing**: Unit, Architecture, and Integration test suites all green, with 3 sample-suite tests skipped by design

@@ -11,6 +11,8 @@ A **production-ready .NET 10 Clean Architecture template** (`dotnet new cleanarc
 Every pattern implemented here is deliberate and documented in `docs/adr/`.
 Do not simplify, replace, or work around patterns without reading the relevant ADR first.
 
+Generated projects are clean by default. The Products feature is an optional executable sample included only with `--IncludeSample`; do not assume it exists in generated apps. Read `docs/TEMPLATE_USAGE.md` before changing template behavior.
+
 ---
 
 ## Layer map — dependency rules (enforced by ArchitectureTests)
@@ -205,9 +207,9 @@ Event handlers are for: metrics counters, operational logging, and external noti
 ## Persistence rules
 
 - **Write side**: EF Core via `IUnitOfWork.SaveChangesAsync()`. Never call `dbContext.SaveChangesAsync()` directly from handlers — use `IUnitOfWork`.
-- **Read side** (complex projections): Dapper via `ISqlConnectionFactory`. See `ProductQueries.cs` for example.
+- **Read side** (complex projections): Dapper via `ISqlConnectionFactory` and feature-specific query interfaces.
 - **Soft delete**: call `entity.SoftDelete()` then `repository.Update(entity)`. Never `repository.Remove()` for soft-deletable entities.
-- **Optimistic concurrency**: `AuditableEntity` includes `RowVersion` for products. Include `[FromHeader(Name = "If-Match")]` on PUT/PATCH endpoints to propagate the ETag. Catch `ConcurrencyException` in the middleware.
+- **Optimistic concurrency**: `AuditableEntity` includes an application-managed `RowVersion` concurrency token. Include `[FromHeader(Name = "If-Match")]` on PUT/PATCH endpoints when the feature exposes ETags. Catch `ConcurrencyException` in the middleware.
 
 ---
 
@@ -217,7 +219,7 @@ All validators live in `src/Application/Validators/` and inherit `AbstractValida
 Common rules are in `src/Application/Validators/Common/` as extension methods:
 
 ```csharp
-RuleFor(x => x.Name).ValidateProductName();
+RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
 ```
 
 Duplicate-name checks **must** use `MustAsync` with the repository, guarded by `.When(x => !string.IsNullOrWhiteSpace(x.Name))` to avoid unnecessary DB calls.
@@ -230,7 +232,7 @@ Duplicate-name checks **must** use `MustAsync` with the repository, guarded by `
 |---|---|---|
 | Domain logic | `tests/UnitTests/Domain/` | None (pure) |
 | Pipeline behaviors | `tests/UnitTests/Behaviors/` | None (mocked) |
-| API endpoints | `tests/IntegrationTests/` | SQL Server (Testcontainers) or InMemory fallback |
+| API endpoints | `tests/IntegrationTests/` | PostgreSQL (Testcontainers) |
 | Architecture rules | `tests/ArchitectureTests/` | None |
 
 - Integration tests use `WebApplicationFactoryFixture` — never create a second factory.
@@ -244,10 +246,10 @@ Duplicate-name checks **must** use `MustAsync` with the repository, guarded by `
 | Task | Files to read first |
 |---|---|
 | Add entity | `Domain/Common/BaseEntity.cs`, `Domain/Common/AuditableEntity.cs` |
-| Add command | Any existing command + handler pair in `UseCases/Products/Commands/` |
-| Add query | Any existing query + handler in `UseCases/Products/Queries/` |
+| Add command | Existing command + handler pair in the same feature style, or generate with `--IncludeSample` for reference |
+| Add query | Existing query + handler in the same feature style, or generate with `--IncludeSample` for reference |
 | Add caching | `Application/Behaviors/CachingBehavior.cs`, `Application/Common/CacheKeys.cs` |
-| Add validation | `Application/Validators/CreateProductCommandValidator.cs` |
-| Add event handler | `UseCases/Products/Events/ProductCreatedEventHandler.cs` |
+| Add validation | `Application/Validators/` and `Application/Validators/Common/` |
+| Add event handler | Feature `UseCases/<Feature>/Events/` handlers |
 | Touch persistence | `Infrastructure/Persistence/ApplicationDbContext.cs` |
-| Add endpoint | `WebAPI/Controllers/ProductsController.cs` |
+| Add endpoint | Existing controllers in `WebAPI/Controllers/` or the optional sample controller |
