@@ -35,8 +35,7 @@ public sealed class WebApplicationFactoryFixture
     {
         try
         {
-            _container = new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
+            _container = new PostgreSqlBuilder("postgres:17-alpine")
                 .WithDatabase("CleanArchitectureTests")
                 .WithUsername("postgres")
                 .WithPassword("postgres")

@@ -3,7 +3,9 @@ using CleanArchitecture.Domain.Interfaces;
 using CleanArchitecture.Infrastructure.Identity;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Infrastructure.Persistence.Outbox;
+//#if (IncludeSample)
 using CleanArchitecture.Infrastructure.Persistence.Repositories;
+//#endif
 using CleanArchitecture.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -40,8 +42,10 @@ public static class DependencyInjection
             sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+//#if (IncludeSample)
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductQueries, ProductQueries>();
+//#endif
         services.AddScoped<ISqlConnectionFactory, SqlConnectionFactory>();
 
         // Identity

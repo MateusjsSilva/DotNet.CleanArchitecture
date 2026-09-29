@@ -1,7 +1,9 @@
 using CleanArchitecture.Application;
 using CleanArchitecture.Infrastructure;
 using CleanArchitecture.Infrastructure.Persistence;
+//#if (IncludeAIModule)
 using CleanArchitecture.Modules.AI;
+//#endif
 using CleanArchitecture.WebAPI.Attributes;
 using CleanArchitecture.WebAPI.Extensions;
 using CleanArchitecture.WebAPI.Middlewares;
@@ -35,7 +37,9 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+//#if (IncludeAIModule)
     builder.Services.AddAIModule(builder.Configuration);
+//#endif
     builder.Services.AddObservability(builder.Configuration);
     builder.Services.AddAppHealthChecks(builder.Configuration);
     builder.Services.AddCorsPolicy(builder.Configuration);
@@ -116,8 +120,10 @@ try
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync();
 
+//#if (IncludeSample)
         // Seed sample data on first run (development only)
         await ApplicationDbContextSeeder.SeedAsync(db);
+//#endif
     }
 
     await app.RunAsync();

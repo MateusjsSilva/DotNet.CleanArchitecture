@@ -34,7 +34,13 @@
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include Dockerfile, docker-compose (SQL Server, Redis, Jaeger, Prometheus, Grafana)."
+      "description": "Include Dockerfile, docker-compose (PostgreSQL, Redis, Jaeger, Prometheus, Grafana)."
+    },
+    "IncludeSample": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include the sample Products domain, API endpoints, tests, seed data, and sample migrations."
     },
     "UseRedis": {
       "type": "parameter",
@@ -52,6 +58,27 @@
   "sources": [
     {
       "modifiers": [
+        {
+          "condition": "(!IncludeSample)",
+          "exclude": [
+            "src/Domain/Entities/Product.cs",
+            "src/Domain/Events/Product*.cs",
+            "src/Domain/Interfaces/IProductRepository.cs",
+            "src/Application/DTOs/Product*.cs",
+            "src/Application/UseCases/Products/**",
+            "src/Application/Validators/*Product*.cs",
+            "src/Application/Validators/Common/ProductValidationRules.cs",
+            "src/Infrastructure/Persistence/ApplicationDbContextSeeder.cs",
+            "src/Infrastructure/Persistence/Configurations/ProductConfiguration.cs",
+            "src/Infrastructure/Persistence/Repositories/Product*.cs",
+            "src/Infrastructure/Persistence/Migrations/**",
+            "src/WebAPI/Controllers/ProductsController.cs",
+            "tests/UnitTests/Domain/Product*.cs",
+            "tests/UnitTests/Products/**",
+            "tests/IntegrationTests/Products/**",
+            "tests/IntegrationTests/Outbox/OutboxTests.cs"
+          ]
+        },
         {
           "condition": "(!UseDocker)",
           "exclude": [

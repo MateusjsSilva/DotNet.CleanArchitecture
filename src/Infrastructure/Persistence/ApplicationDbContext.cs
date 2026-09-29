@@ -1,6 +1,8 @@
 using CleanArchitecture.Application.Interfaces;
 using CleanArchitecture.Domain.Common;
+//#if (IncludeSample)
 using CleanArchitecture.Domain.Entities;
+//#endif
 using CleanArchitecture.Infrastructure.Identity;
 using CleanArchitecture.Infrastructure.Persistence.Outbox;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +19,9 @@ public sealed class ApplicationDbContext(
     ICurrentUserService currentUserService)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IApplicationDbContext
 {
+//#if (IncludeSample)
     public DbSet<Product> Products => Set<Product>();
+//#endif
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<DeadLetterMessage> DeadLetterMessages => Set<DeadLetterMessage>();
@@ -52,7 +56,9 @@ public sealed class ApplicationDbContext(
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SetAuditFields();
+//#if (IncludeSample)
         SetConcurrencyTokens();
+//#endif
         ConvertDomainEventsToOutboxMessages();
 
         return await base.SaveChangesAsync(cancellationToken);
@@ -85,6 +91,7 @@ public sealed class ApplicationDbContext(
         }
     }
 
+//#if (IncludeSample)
     private void SetConcurrencyTokens()
     {
         var entries = ChangeTracker
@@ -96,6 +103,7 @@ public sealed class ApplicationDbContext(
             entry.Entity.RefreshRowVersion();
         }
     }
+//#endif
 
     private void ConvertDomainEventsToOutboxMessages()
     {
