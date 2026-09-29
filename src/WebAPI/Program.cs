@@ -10,6 +10,7 @@ using CleanArchitecture.WebAPI.Middlewares;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Events;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -74,6 +75,27 @@ try
     builder.Services.AddAuthorization();
 
     var app = builder.Build();
+
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.GetLevel = (httpContext, _, exception) =>
+        {
+            if (exception is not null || httpContext.Response.StatusCode >= StatusCodes.Status500InternalServerError)
+                return LogEventLevel.Error;
+
+            var path = httpContext.Request.Path;
+            if (path.StartsWithSegments("/metrics") || path.StartsWithSegments("/health"))
+                return LogEventLevel.Verbose;
+
+            return LogEventLevel.Information;
+        };
+
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value ?? string.Empty);
+            diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+        };
+    });
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSecurityHeaders(app.Environment);
